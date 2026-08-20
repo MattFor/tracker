@@ -5,45 +5,79 @@ import time
 from pathlib import Path
 
 from src.obj.settings import settings
-from src.projects import find_projects, Projects
+from src.projects import find_projects, get_id, Projects
 from src.tracker_data import create_data, load_data, save_data
 
 
-def update_database(paths: list[str], data: Projects) -> tuple[Projects, bool, list[str]]:
+def update_database(
+	paths: list[str], data: Projects, archive: bool
+) -> tuple[Projects, bool, list[str], list[str]]:
 	before = copy.deepcopy(data)
 	before_paths = set(data)
 
-	for path in paths:
-		path = os.path.expanduser(path)
+	valid_paths: list[Path] = []
+	found_paths: set[str] = set()
 
-		if not os.path.exists(path):
+	for path in paths:
+		path = Path(os.path.expanduser(path)).resolve()
+
+		if not path.exists():
 			print(f"[ERROR] daemon path does not exist: {path}")
 			continue
 
-		if not os.path.isdir(path):
+		if not path.is_dir():
 			print(f"[ERROR] daemon path is not a directory: {path}")
 			continue
 
-		data = find_projects(path, settings, data)
+		valid_paths.append(path)
 
-	new_projects = [path for path in data if path not in before_paths]
+		scanned = find_projects(str(path), settings)
+
+		found_paths.update(scanned)
+
+		for project_path, scanned_project in scanned.items():
+			if project_path in data:
+				data[project_path]["last_touched"] = scanned_project["last_touched"]
+
+			else:
+				scanned_project["id"] = get_id(data)
+				data[project_path] = scanned_project
+
+	removed_projects: list[str] = []
+
+	if not archive:
+		for project_path in list(data):
+			project = Path(project_path)
+
+			if not any(project.is_relative_to(path) for path in valid_paths):
+				continue
+
+			if project_path not in found_paths:
+				removed_projects.append(project_path)
+				del data[project_path]
+
+	new_projects = [
+		project_path for project_path in data if project_path not in before_paths
+	]
 
 	changed = data != before
 
 	if changed:
 		save_data(data)
 
-	return data, changed, new_projects
+	return data, changed, new_projects, removed_projects
 
 
 def main() -> None:
-	paths: list[str] = settings["daemon"]["paths"]
+	archive: bool = settings["daemon"]["archive"]
 	interval: int = settings["daemon"]["interval"]
+	paths: list[str] = settings["daemon"]["paths"]
 	timestamp_format: str = settings["daemon"]["timestamp_format"]
 
 	if not paths:
-		print("[ERROR] no daemon paths configured")
-		print("add paths to [daemon] in settings.toml")
+		print(
+			"\n[ERROR] no daemon paths configured; add them to [daemon] in settings.toml"
+		)
 		return
 
 	if interval < 1:
@@ -57,7 +91,7 @@ def main() -> None:
 
 	paths = [os.path.abspath(os.path.expanduser(path)) for path in paths]
 
-	print("watching:")
+	print("\nwatching:")
 	for path in paths:
 		print(f"- {path}")
 
@@ -68,7 +102,9 @@ def main() -> None:
 		while True:
 			started = time.monotonic()
 
-			data, changed, new_projects = update_database(paths, data)
+			data, changed, new_projects, removed_projects = update_database(
+				paths, data, archive
+			)
 
 			timestamp = time.strftime(timestamp_format)
 
@@ -85,14 +121,35 @@ def main() -> None:
 				name_width = max(len(name) for _, name, _ in project_rows)
 
 				print(
-					f"[{timestamp}] added {len(project_rows)} new project{'s' if len(project_rows) > 1 else ''}:"
+					f"[{timestamp}] added {len(project_rows)} new project{'s' if len(project_rows) != 1 else ''}:"
 				)
 
 				for project_id, name, project_path in project_rows:
 					print(f"  {project_id:<4} {name:<{name_width}}  {project_path}")
-			elif changed:
+
+			if removed_projects:
+				project_rows = [
+					(
+						None,
+						Path(project_path).name,
+						project_path,
+					)
+					for project_path in removed_projects
+				]
+
+				name_width = max(len(name) for _, name, _ in project_rows)
+
+				print(
+					f"[{timestamp}] removed {len(project_rows)} project{'s' if len(project_rows) != 1 else ''}:"
+				)
+
+				for _, name, project_path in project_rows:
+					print(f"  {'-':<4} {name:<{name_width}}  {project_path}")
+
+			if not new_projects and not removed_projects and changed:
 				print(f"[{timestamp}] database updated")
-			else:
+
+			elif not new_projects and not removed_projects:
 				print(f"[{timestamp}] no changes")
 
 			elapsed = time.monotonic() - started

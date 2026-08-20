@@ -103,6 +103,7 @@ class Settings:
 			"daemon": {
 				"paths": [],
 				"interval": 60,
+				"archive": True,
 				"timestamp_format": "%Y-%m-%d %H:%M:%S",
 			},
 		}

@@ -53,8 +53,13 @@ file = "data.pkl"
 always_verbose = false
 
 [daemon]
-paths = []
+paths = [
+    "~/Programming"
+]
+
+# Whether to still keep deleted projects
+archive = true
 
 # In seconds
-interval = 600
+interval = 60
 timestamp_format = "%Y-%m-%d %H:%M:%S"

@@ -1,4 +1,6 @@
 import sys
+import signal
+import subprocess
 
 from src.projects import *
 from src.tracker_data import *
@@ -28,7 +30,50 @@ _AVAILABLE_ARGUMENTS = {
 	"s",
 	"config",
 	"cc",
+	"daemon",
+	"daemonize",
+	"daemonise",
+	"background",
+	"b",
+	"dbg",
 }
+
+
+def kill_daemons() -> None:
+	result = subprocess.run(
+		["pgrep", "-f", r"-m src\.daemon(?:\s|$)"],
+		capture_output=True,
+		text=True,
+	)
+
+	if result.returncode != 0:
+		print("no daemons running")
+		return
+
+	pids = []
+
+	for line in result.stdout.splitlines():
+		try:
+			pid = int(line.strip())
+		except ValueError:
+			continue
+
+		if pid != os.getpid():
+			pids.append(pid)
+
+	if not pids:
+		print("no daemons running")
+		return
+
+	for pid in pids:
+		try:
+			os.kill(pid, signal.SIGTERM)
+		except ProcessLookupError:
+			continue
+		except PermissionError:
+			print(f"[ERROR] could not kill daemon {pid}")
+
+	print(f"killed {len(pids)} daemon{'s' if len(pids) != 1 else ''}")
 
 
 def main() -> None:
@@ -127,6 +172,33 @@ def main() -> None:
 
 				print_projects(data, list_settings, options)
 
+			case "check" | "cc":
+				if i + 1 >= len(args):
+					print("[ERROR] check requires a project")
+					break
+
+				identifier = args[i + 1]
+				done.add(i + 1)
+
+				selected_projects = select_projects(data, settings, [identifier])
+
+				if not selected_projects:
+					print("[ERROR] no projects selected")
+					break
+
+				if len(selected_projects) > 1:
+					print("[ERROR] multiple projects selected")
+					break
+
+				project_path, project_data = next(iter(selected_projects.items()))
+
+				print(format_project(project_path, project_data, settings))
+
+				note = project_data.get("note", "")
+
+				if note:
+					print(f"    {GRAY}{note}{RESET}")
+
 			case "add" | "a":
 				if i + 1 >= len(args):
 					print("[ERROR] add requires a path")
@@ -217,54 +289,41 @@ def main() -> None:
 
 			case "remove" | "rm" | "r":
 				if i + 1 >= len(args):
-					print("[ERROR] remove requires a project")
+					print("[ERROR] no project provided")
 					break
 
 				identifier = args[i + 1]
 				done.add(i + 1)
 
-				# Basically clear the database
 				if identifier.lower().strip("-") in ("all", "a"):
-					how_many = len(data.keys())
-
-					create_data()
+					how_many = len(data)
+					data = {}
+					save_data(data)
 
 					print(f"removed {how_many} entries")
 					break
 
-				found = get_project(data, settings, identifier)
+				selected_projects = select_projects(data, settings, [identifier])
 
-				if found is None:
-					print(f"[ERROR] project '{identifier}' was not found")
+				if not selected_projects:
+					print("[ERROR] no projects selected")
 					break
 
-				project_path, project_data = found
+				removed_projects = dict(selected_projects)
 
-				del data[project_path]
+				for project_path in selected_projects:
+					del data[project_path]
+
 				save_data(data)
 
-				print(f"removed {format_project(project_path, project_data, settings)}")
+				if len(removed_projects) == 1:
+					project_path, project_data = next(iter(removed_projects.items()))
 
-			case "check" | "cc":
-				if i + 1 >= len(args):
-					print("[ERROR] check requires a project")
-					break
-
-				identifier = args[i + 1]
-				done.add(i + 1)
-
-				found = get_project(data, settings, identifier)
-
-				if found is None:
-					print(f"[ERROR] project '{identifier}' was not found")
-					break
-
-				project_path, project_data = found
-				print(format_project(project_path, project_data, settings))
-
-				note = project_data.get("note", "")
-				if note:
-					print(f"    {GRAY}{note}{RESET}")
+					print(
+						f"removed {format_project(project_path, project_data, settings)}"
+					)
+				else:
+					print(f"removed {len(removed_projects)} projects")
 
 			case "edit" | "e":
 				if i + 1 >= len(args):
@@ -394,21 +453,47 @@ def main() -> None:
 					case _:
 						print(f"[ERROR] unknown settings action '{args[i + 1]}'")
 
+			case "daemon" | "d" | "daemonize" | "daemonise" | "background" | "b" | "bg":
+				if i + 1 < len(args):
+					action = args[i + 1].lower().strip("-")
+
+					if action in ("kill", "k"):
+						done.add(i + 1)
+						kill_daemons()
+						break
+
+				daemon_path = Path(__file__).resolve().parent / "src" / "daemon.py"
+
+				if not daemon_path.exists():
+					print("[ERROR] daemon.py was not found")
+					break
+
+				subprocess.Popen(
+					[sys.executable, "-m", "src.daemon"],
+					cwd=Path(__file__).resolve().parent,
+					start_new_session=True,
+				)
+
+				print("daemon started")
+
 			# If the argument is not found maybe find the project?
 			case _:
 				identifier = args[i]
 
-				found = get_project(data, settings, identifier)
+				selected_projects = select_projects(data, settings, [identifier])
 
-				if found is None:
-					print(f"[ERROR] invalid argument")
+				if not selected_projects:
 					break
 
-				project_path, project_data = found
+				if len(selected_projects) > 1:
+					continue
+
+				project_path, project_data = next(iter(selected_projects.items()))
 
 				print(format_project(project_path, project_data, settings))
 
 				note = project_data.get("note", "")
+
 				if note:
 					print(f"    {GRAY}{note}{RESET}")
 
