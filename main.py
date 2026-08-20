@@ -25,7 +25,7 @@ def main() -> None:
 
 	# Mark the argument to skip over it later
 	for i, arg in enumerate(args):
-		if arg.lower().strip("-") in ("verbose",):
+		if arg.lower().strip("-") in ("verbose", "v"):
 			verbose = True
 			done.add(i)
 
@@ -65,12 +65,6 @@ def main() -> None:
 					print("[ERROR] the path is not a directory")
 					break
 
-				project_path = str(path)
-
-				if project_path in data:
-					print("[ERROR] project already exists")
-					break
-
 				status: str = settings["projects"]["default_status"]
 
 				if i + 2 < len(args):
@@ -83,22 +77,63 @@ def main() -> None:
 					note = " ".join(args[i + 3 :])
 					done.update(range(i + 3, len(args)))
 
-				last_touched = get_last_touched_date(project_path)
+				git_dir = path / ".git"
 
-				data[project_path] = {
-					"path": project_path,
-					"status": status,
-					"last_touched": (
-						last_touched.strftime(settings["display"]["time_format"])
-						if last_touched is not None
-						else "unknown"
-					),
-					"note": note,
-				}
+				if git_dir.is_dir() or git_dir.is_file():
+					project_path = str(path)
+
+					if project_path in data:
+						print("[ERROR] project already exists")
+						break
+
+					last_touched = get_last_touched_date(project_path)
+
+					data[project_path] = {
+						"id": get_id(data),
+						"path": project_path,
+						"status": status,
+						"last_touched": (
+							last_touched.strftime(settings["display"]["time_format"])
+							if last_touched is not None
+							else "unknown"
+						),
+						"note": note,
+					}
+
+					save_data(data)
+
+					print(f"added {path.name} ({data[project_path]['id']})")
+					break
+
+				print(f"scanning {path} for projects...")
+
+				existing_paths = set(data)
+
+				projects = find_projects(str(path), settings, data)
+
+				new_projects = [
+					project_path
+					for project_path in projects
+					if project_path not in existing_paths
+				]
+
+				if not new_projects:
+					print("no new projects found")
+					break
+
+				for project_path in new_projects:
+					projects[project_path]["status"] = status
+					projects[project_path]["note"] = note
+
+				data = projects
 
 				save_data(data)
 
-				print(f"added {path.name}")
+				print(f"added {len(new_projects)} projects")
+
+				for project_path in new_projects:
+					project_data = data[project_path]
+					print(f"  {project_data['id']} | {Path(project_path).name}")
 
 			case "remove" | "rm" | "r":
 				if i + 1 >= len(args):
@@ -107,6 +142,15 @@ def main() -> None:
 
 				identifier = args[i + 1]
 				done.add(i + 1)
+
+				# Basically clear the database
+				if identifier.lower().strip("-") in ("all", "a"):
+					how_many = len(data.keys())
+
+					create_data()
+
+					print(f"removed {how_many} entries")
+					break
 
 				found = get_project(data, identifier)
 
@@ -147,6 +191,56 @@ def main() -> None:
 				if note:
 					print(f"note:          {note}")
 
+			case "edit" | "e":
+				if i + 1 >= len(args):
+					print("[ERROR] edit requires a project")
+					break
+
+				identifier = args[i + 1]
+				done.add(i + 1)
+
+				found = get_project(data, identifier)
+
+				if found is None:
+					print(f"[ERROR] project '{identifier}' not found")
+					break
+
+				project_path, project_data = found
+
+				j = i + 2
+				changed: bool = False
+
+				while j < len(args):
+					field = args[j].lower()
+
+					if field == "status":
+						if j + 1 >= len(args):
+							print("[ERROR] edit status requires a value")
+							break
+
+						project_data["status"] = args[j + 1]
+						done.update({j, j + 1})
+						changed = True
+						j += 2
+
+					elif field == "note":
+						if j + 1 >= len(args):
+							print("[ERROR] edit note requires a value")
+							break
+
+						project_data["note"] = " ".join(args[j + 1 :])
+						done.update(range(j, len(args)))
+						changed = True
+						break
+
+					else:
+						print(f"[ERROR] unknown edit field '{args[j]}'")
+						break
+
+				if changed:
+					save_data(data)
+					print(f"edited {Path(project_path).name}")
+
 			case "init" | "i":
 				specific_path = args[i + 1] if i + 1 < len(args) else os.getcwd()
 
@@ -161,7 +255,7 @@ def main() -> None:
 
 				print(f"Scanning {os.path.abspath(path)}...")
 
-				projects = find_projects(path)
+				projects = find_projects(path, settings)
 
 				if not projects:
 					print("no projects found.")

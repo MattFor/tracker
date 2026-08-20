@@ -3,7 +3,7 @@ list_limit = 10
 show_notes = true
 show_headers = false
 time_format = "%Y-%m-%d %H:%M:%S"
-columns = ["name", "status", "last_touched"]
+columns = ["tid", "name", "status", "last_touched"]
 
 [sorting]
 # name / time

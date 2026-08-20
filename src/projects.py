@@ -5,6 +5,8 @@ from src.obj.settings import Settings
 
 
 class Project(TypedDict):
+	id: int
+	tid: int
 	path: str
 	status: str
 	last_touched: str
@@ -14,12 +16,21 @@ class Project(TypedDict):
 Projects = dict[str, Project]
 
 
+def get_id(projects: Projects) -> int:
+	if not projects:
+		return 1
+
+	return max(project["id"] for project in projects.values()) + 1
+
+
 def print_projects(projects: Projects, settings: Settings) -> None:
 	if not projects:
 		print("no projects found")
 		return
 
 	headers = {
+		"id": "ID",
+		"tid": "TID",
 		"name": "NAME",
 		"path": "PATH",
 		"status": "STATUS",
@@ -42,7 +53,7 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 	sort_by: str = settings["sorting"]["by"]
 	sort_direction: str = settings["sorting"]["direction"]
 
-	if sort_by not in headers:
+	if sort_by not in headers and sort_by != "time":
 		sort_by = "name"
 
 	reverse: bool = sort_direction == "descending"
@@ -51,25 +62,38 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 		# noinspection shadowing-names
 		path, project = item
 
+		if sort_by == "id":
+			return str(project["id"])
+
 		if sort_by == "name":
 			return Path(path).name.lower()
 
 		if sort_by == "path":
 			return path.lower()
 
+		if sort_by in ("last_touched", "time"):
+			return project["last_touched"]
+
 		return project[sort_by].lower()
 
-	sorted_projects = sorted(projects.items(), key=sort_key, reverse=reverse)
-
-	selected_projects = sorted_projects[:list_limit]
+	sorted_projects = sorted(
+		projects.items(),
+		key=sort_key,
+		reverse=reverse,
+	)
 
 	rows = []
-
-	for path, project in selected_projects:
+	for tid, (path, project) in enumerate(sorted_projects, start=1):
 		row = []
 
 		for column in columns:
-			if column == "name":
+			if column == "id":
+				value = str(project["id"])
+
+			elif column == "tid":
+				value = str(tid)
+
+			elif column == "name":
 				value = Path(path).name
 
 			elif column == "path":
@@ -83,12 +107,14 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 
 			row.append(value)
 
-		rows.append((path, project, row))
+		rows.append((tid, path, project, row))
+
+	rows = rows[:list_limit]
 
 	widths = [
 		max(
 			len(headers[column]),
-			*(len(row[i]) for _, _, row in rows),
+			*(len(row[3][i]) for row in rows),
 		)
 		for i, column in enumerate(columns)
 	]
@@ -97,16 +123,25 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 
 	if show_headers:
 		header = spacing.join(
-			headers[column].ljust(widths[i]) for i, column in enumerate(columns)
+			headers[column].ljust(widths[i])
+			for i, column in enumerate(columns)
 		)
 
-		separator = spacing.join("-" * width for width in widths)
+		separator = spacing.join(
+			"-" * width
+			for width in widths
+		)
 
 		print(header)
 		print(separator)
 
-	for path, project, row in rows:
-		print(spacing.join(value.ljust(widths[i]) for i, value in enumerate(row)))
+	for tid, path, project, row in rows:
+		print(
+			spacing.join(
+				value.ljust(widths[i])
+				for i, value in enumerate(row)
+			)
+		)
 
 		note = project.get("note", "")
 
@@ -114,8 +149,9 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 			print(f"    {GRAY}{note}{RESET}")
 
 
-def find_projects(path: str, settings: Settings) -> Projects:
-	projects: Projects = {}
+def find_projects(path: str, settings: Settings, projects: Projects | None = None) -> Projects:
+	if projects is None:
+		projects = {}
 
 	root_path = Path(path).expanduser().resolve()
 
@@ -138,19 +174,30 @@ def find_projects(path: str, settings: Settings) -> Projects:
 		is_project = detect_git and (git_dir.is_dir() or git_dir.is_file())
 
 		if is_project:
-			last_touched = get_last_touched_date(str(current_path))
 			project_path = str(current_path)
+			last_touched = get_last_touched_date(project_path)
 
-			projects[project_path] = {
-				"path": project_path,
-				"status": default_status,
-				"last_touched": (
+			# Update existing project
+			if project_path in projects:
+				projects[project_path]["last_touched"] = (
 					last_touched.strftime(time_format)
 					if last_touched is not None
 					else "unknown"
-				),
-				"note": "",
-			}
+				)
+
+			# Add  new project
+			else:
+				projects[project_path] = {
+					"id": get_id(projects),
+					"path": project_path,
+					"status": default_status,
+					"last_touched": (
+						last_touched.strftime(time_format)
+						if last_touched is not None
+						else "unknown"
+					),
+					"note": "",
+				}
 
 			# Don't search already found
 			if stop_at_project:
@@ -165,40 +212,42 @@ def find_projects(path: str, settings: Settings) -> Projects:
 
 
 def get_project(projects: Projects, identifier: str) -> tuple[str, Project] | None:
-	identifier = os.path.expanduser(identifier).lower()
+	identifier = os.path.expanduser(identifier).strip().lower()
+
+	if identifier.isdigit():
+		project_id = int(identifier)
+
+		for path, project in projects.items():
+			if project["id"] == project_id:
+				return path, project
+
+		print(f"[ERROR] no project with ID '{identifier}'")
+		return None
 
 	for path, project in projects.items():
 		if path.lower() == identifier:
 			return path, project
 
-	exact_matches = [
+	for path, project in projects.items():
+		if Path(path).name.lower() == identifier:
+			return path, project
+
+	matches = [
 		(path, project)
 		for path, project in projects.items()
-		if Path(path).name.lower() == identifier
+		if (identifier in Path(path).name.lower() or identifier in path.lower())
 	]
 
-	if len(exact_matches) == 1:
-		return exact_matches[0]
+	if len(matches) == 1:
+		return matches[0]
 
-	if len(exact_matches) > 1:
-		print(f"[ERROR] multiple projects match '{identifier}'")
-		return None
-
-	fuzzy_matches = [
-		(path, project)
-		for path, project in projects.items()
-		if Path(path).name.lower().startswith(identifier)
-	]
-
-	if len(fuzzy_matches) == 1:
-		return fuzzy_matches[0]
-
-	if len(fuzzy_matches) > 1:
+	if len(matches) > 1:
 		print(f"[ERROR] multiple projects match '{identifier}':")
 
-		for path, _ in fuzzy_matches:
-			print(f"  {Path(path).name} | {path}")
+		for path, project in matches:
+			print(f"  {project['id']} | {Path(path).name} | {path}")
 
 		return None
 
+	print(f"[ERROR] project '{identifier}' was not found")
 	return None

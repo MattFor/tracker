@@ -4,5 +4,8 @@ Simple tracker that tracks the projects in your directories, their versions and 
 
 # Roadmap
 
-1. Add IDs to projects
-2. Make it so that you can make it show f.e 5 on the default no argument list + dont show a column f.e or do not show the home dir etc etc
+argument settings to view settings
+settings edit to launch the default editor
+
+make rm accept ranges / folders
+finish edit multiple, scratch that, let's do edit with a range
