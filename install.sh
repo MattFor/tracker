@@ -106,8 +106,8 @@ case ":${PATH}:" in
         ;;
 esac
 
-MAN_PAGE="${MAN_DIR}/tracker.1"
 MAN_DIR="${HOME}/.local/share/man/man1"
+MAN_PAGE="${MAN_DIR}/tracker.1"
 
 mkdir -p "${MAN_DIR}"
 
