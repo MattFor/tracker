@@ -4,6 +4,8 @@ Simple tracker that tracks the projects in your directories, their versions and 
 
 # Roadmap
 
+make the daemon which is going to 
+
 after everything make it like a standalone executable , upgrade the toml so it's not a copy paste from logeye lol
 make a release and mention the codeberg mirror
 

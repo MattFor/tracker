@@ -8,6 +8,8 @@ columns = ["tid", "name", "status", "last_touched"]
 vertical_separator = ""
 horizontal_separator = ""
 
+filter = ["current"]
+
 [sorting]
 # name / time
 by = "last_touched"
@@ -46,3 +48,6 @@ file = "data.pkl"
 
 [logging]
 always_verbose = false
+
+[daemon]
+paths = []

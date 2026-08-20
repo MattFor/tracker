@@ -89,7 +89,6 @@ def _find_by_number(projects: Projects, number: int) -> list[tuple[str, Project]
 def select_projects(
 	projects: Projects, settings: Settings, selectors: list[str]
 ) -> Projects:
-
 	projects = _get_sorted_projects(projects, settings)
 
 	selected: Projects = {}
@@ -202,6 +201,65 @@ def select_projects(
 	return selected
 
 
+def filter_projects(projects: Projects, filters: list[str]) -> Projects:
+	if not filters:
+		return projects
+
+	filtered: Projects = dict(projects)
+
+	for expression in filters:
+		expression = expression.strip()
+
+		if len(expression) < 4:
+			continue
+
+		action = expression[0]
+		filter_type = expression[1].lower()
+		value = expression[3:]
+
+		if action not in ("+", "-"):
+			continue
+
+		if filter_type not in ("m", "r"):
+			print(f"[ERROR] invalid filter '{expression}'")
+			continue
+
+		if not value:
+			continue
+
+		matches: set[str] = set()
+
+		if filter_type == "m":
+			value = value.lower()
+
+			matches = {
+				path
+				for path in filtered
+				if (value in Path(path).name.lower() or value in path.lower())
+			}
+
+		elif filter_type == "r":
+			try:
+				pattern = re.compile(value, re.IGNORECASE)
+			except re.error as error:
+				print(f"[ERROR] invalid regex '{value}': {error}")
+				continue
+
+			matches = {path for path in filtered if pattern.search(Path(path).name)}
+
+		if action == "+":
+			filtered = {
+				path: project for path, project in filtered.items() if path in matches
+			}
+
+		else:
+			filtered = {
+				path: project for path, project in filtered.items() if path not in matches
+			}
+
+	return filtered
+
+
 def print_projects(
 	projects: Projects, settings: Settings, options: ListOptions | None = None
 ) -> None:
@@ -226,11 +284,12 @@ def print_projects(
 	if list_limit is None:
 		list_limit = settings["display"]["list_limit"]
 
-	columns: list[str] = settings["display"]["columns"]
-	show_headers: bool = settings["display"]["show_headers"]
-	show_notes: bool = settings["display"]["show_notes"]
 	compact: bool = settings["output"]["compact"]
+	columns: list[str] = settings["display"]["columns"]
+	show_notes: bool = settings["display"]["show_notes"]
+	show_headers: bool = settings["display"]["show_headers"]
 	absolute_paths: bool = settings["output"]["absolute_paths"]
+	configured_filters: list[str] = settings["display"]["filter"]
 
 	columns = [column for column in columns if column in headers]
 
@@ -238,21 +297,25 @@ def print_projects(
 		print("no valid columns configured")
 		return
 
+	filtered_projects = filter_projects(
+		projects,
+		configured_filters,
+	)
+
 	search: str | None = options.get("search")
-	name_regex: str | None = options.get("regex")
 
-	filtered_projects = projects
-
-	if search:
-		search = search.lower()
+	if search is not None:
+		search_lower = search.lower()
 
 		filtered_projects = {
 			path: project
 			for path, project in filtered_projects.items()
-			if (search in Path(path).name.lower() or search in path.lower())
+			if (search_lower in Path(path).name.lower() or search_lower in path.lower())
 		}
 
-	if name_regex:
+	name_regex: str | None = options.get("regex")
+
+	if name_regex is not None:
 		try:
 			pattern = re.compile(name_regex, re.IGNORECASE)
 		except re.error as error:
@@ -272,7 +335,14 @@ def print_projects(
 	sort_by: str = settings["sorting"]["by"]
 	sort_direction: str = settings["sorting"]["direction"]
 
-	if sort_by not in ("id", "name", "path", "status", "last_touched", "time"):
+	if sort_by not in (
+		"id",
+		"name",
+		"path",
+		"status",
+		"last_touched",
+		"time",
+	):
 		sort_by = "name"
 
 	reverse = sort_direction == "descending"
@@ -300,8 +370,11 @@ def print_projects(
 		reverse=reverse,
 	)
 
+	selected_projects = sorted_projects[:list_limit]
+
 	rows = []
-	for tid, (path, project) in enumerate(sorted_projects, start=1):
+
+	for tid, (path, project) in enumerate(selected_projects, start=1):
 		row = []
 
 		for column in columns:
@@ -326,8 +399,6 @@ def print_projects(
 			row.append(value)
 
 		rows.append((tid, path, project, row))
-
-	rows = rows[:list_limit]
 
 	widths = [
 		max(
