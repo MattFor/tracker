@@ -1,10 +1,9 @@
-import os
 import json
 import pickle
 import tomllib
 
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -34,7 +33,7 @@ def load_data() -> dict[str, Any] | False:
 			data: dict[str, Any] = pickle.load(f)
 		return data
 	except FileNotFoundError:
-		return None
+		return False
 
 
 def load_pyproject_toml() -> dict[str, Any] | False:

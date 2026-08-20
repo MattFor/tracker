@@ -1,14 +1,14 @@
 import sys
 
 from src.utils import *
+from src.projects import *
 from src.pyproj import project
 
 import src.settings_and_data as settings
 
 
 def main() -> None:
-	settings.create_settings()
-
+	# settings.create_settings()
 	# settings: dict = load_settings()
 	#
 	# if settings.mode == "auto":
@@ -17,14 +17,27 @@ def main() -> None:
 	# 	pass
 
 	cwd: str = os.getcwd()
-	init: bool = settings.create_data()
-	data: dict | False = {} if init else settings.load_data()
+
+	data = settings.load_data()
+
+	if data is False:
+		settings.create_data()
+		data = {}
 
 	args = sys.argv[1:]
 
+	if len(args) == 0:
+		print_projects(data)
+		return
+
 	verbose: bool = any(x in args for x in ("--verbose", "verbose", "-v", "v"))
 
+	done: set[int] = set()
+
 	for i in range(len(sys.argv[1:])):
+		if i in done:
+			continue
+
 		arg = args[i]
 		match arg:
 			case "--version" | "version" | "-v" | "v":
@@ -39,8 +52,7 @@ def main() -> None:
 			# Person can add their own statuses f.e 'final', 'maintenance', 'completed', etc.
 			# last touched date - newest date a file was touched in the project
 			case "--list" | "list" | "-l" | "l":
-				for k, v in data.items():
-					print(f"{k} | {v}")
+				print_projects(data)
 
 			case "--add" | "add" | "-a" | "a":
 				pass
@@ -52,11 +64,35 @@ def main() -> None:
 			case "--check" | "check" | "-c" | "c":
 				pass
 
-			case "find":
-				print(walk(args[i + 1], args[i + 2]))
+			case "--init" | "init" | "-i" | "i":
+				specific_path = args[i + 1] if i + 1 < len(args) else cwd
+
+				if i + 1 < len(args):
+					done.add(i + 1)
+
+				path = os.path.expanduser(specific_path)
+
+				if not os.path.exists(path):
+					print("[ERROR] the path does not exist")
+					break
+
+				print(f"Scanning {os.path.abspath(path)}...")
+
+				projects = find_projects(path)
+
+				if not projects:
+					print("no projects found.")
+					break
+
+				print(f"found {len(projects)} projects.")
+
+				print("saving projects...")
+				data = projects
+				settings.save_data(data)
+				print("done")
 
 			case _:  # Assume "list"
-				print(data)
+				print_projects(data)
 
 
 if __name__ == "__main__":
