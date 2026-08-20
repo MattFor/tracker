@@ -1,29 +1,14 @@
 import os
 import sys
 
+from src.pyproj import project
+
+import src.sys_utils as sutils
 import src.settings_and_data as settings
-
-#
-#  Directory walking
-#
-
-
-def walk(path: str, proj: str) -> dict | False:
-	for root, dirs, files in os.walk(path):
-		print(root)
-
-		# noinspection shadowing-builtins
-		for dir in dirs:
-			if dir.lower() == proj.lower():
-				return {
-					"path": dir,
-				}
-
-	return False
 
 
 def main() -> None:
-	version: str | None = None
+	settings.create_settings()
 
 	# settings: dict = load_settings()
 	#
@@ -32,26 +17,21 @@ def main() -> None:
 	# else:
 	# 	pass
 
-	if not os.path.exists("settings.json"):
-		with open("settings.json", "r") as f:
-			pass
-
-	init: bool = False
-	data: dict | None = None
-
-	if not os.path.exists("data.pkl"):
-		init = settings.create_data()
-
 	cwd: str = os.getcwd()
-	data = {} if init else load_data()
+	init: bool = settings.create_data()
+	data: dict | False = {} if init else settings.load_data()
 
 	args = sys.argv[1:]
 	for i in range(len(sys.argv[1:])):
 		arg = args[i]
 		match arg:
+			case "--version" | "version" | "-v" | "v":
+				print(
+					f"Project tracker v{project['version']} created by {project['authors'][0]['name']}"
+				)
+
 			case "--help" | "help" | "-h" | "h":
-				with open("pyproject.toml", "br") as f:
-					version = tomllib.load(f)["project"]["version"]
+				version = settings.load_pyproject_toml()["project"]["version"]
 
 				print(version)
 
@@ -70,7 +50,7 @@ def main() -> None:
 				pass
 
 			case "find":
-				print(walk(args[i + 1], args[i + 2]))
+				print(sutils.walk(args[i + 1], args[i + 2]))
 
 			case _:  # Assume "list"
 				print(data)
