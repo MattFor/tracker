@@ -29,6 +29,9 @@ ignore = [
     "node_modules"
 ]
 
+# starts_with / "first_match" / TODO: zoxide score - top / bottom
+conflict_resolution_preference = "starts_with"
+
 [scan]
 detect_git = true
 
@@ -51,3 +54,7 @@ always_verbose = false
 
 [daemon]
 paths = []
+
+# In seconds
+interval = 600
+timestamp_format = "%Y-%m-%d %H:%M:%S"

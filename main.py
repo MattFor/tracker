@@ -180,7 +180,9 @@ def main() -> None:
 
 					save_data(data)
 
-					print(f"added {path.name} ({data[project_path]['id']})")
+					print(
+						f"added {format_project(project_path, data[project_path], settings)}"
+					)
 					break
 
 				print(f"scanning {path} for projects...")
@@ -211,7 +213,7 @@ def main() -> None:
 
 				for project_path in new_projects:
 					project_data = data[project_path]
-					print(f"  {project_data['id']} | {Path(project_path).name}")
+					print(f"  {format_project(project_path, project_data, settings)}")
 
 			case "remove" | "rm" | "r":
 				if i + 1 >= len(args):
@@ -230,18 +232,18 @@ def main() -> None:
 					print(f"removed {how_many} entries")
 					break
 
-				found = get_project(data, identifier)
+				found = get_project(data, settings, identifier)
 
 				if found is None:
 					print(f"[ERROR] project '{identifier}' was not found")
 					break
 
-				project_path, _ = found
+				project_path, project_data = found
 
 				del data[project_path]
 				save_data(data)
 
-				print(f"removed {Path(project_path).name}")
+				print(f"removed {format_project(project_path, project_data, settings)}")
 
 			case "check" | "cc":
 				if i + 1 >= len(args):
@@ -251,24 +253,18 @@ def main() -> None:
 				identifier = args[i + 1]
 				done.add(i + 1)
 
-				found = get_project(data, identifier)
+				found = get_project(data, settings, identifier)
 
 				if found is None:
 					print(f"[ERROR] project '{identifier}' was not found")
 					break
 
 				project_path, project_data = found
-
-				print(f"id:            {project_data['id']}")
-				print(f"name:          {Path(project_path).name}")
-				print(f"path:          {project_path}")
-				print(f"status:        {project_data['status']}")
-				print(f"last touched:  {project_data['last_touched']}")
+				print(format_project(project_path, project_data, settings))
 
 				note = project_data.get("note", "")
-
 				if note:
-					print(f"note:          {note}")
+					print(f"    {GRAY}{note}{RESET}")
 
 			case "edit" | "e":
 				if i + 1 >= len(args):
@@ -282,18 +278,14 @@ def main() -> None:
 					selected_projects = data
 
 				else:
-					selected_projects = select_projects(
-						data,
-						settings,
-						[identifier],
-					)
+					selected_projects = select_projects(data, settings, [identifier])
 
 				if not selected_projects:
 					print("[ERROR] no projects selected")
 					break
 
+				changes: dict[str, tuple[str, str]] = {}
 				j = i + 2
-				changed: bool = False
 
 				while j < len(args):
 					field = args[j].lower()
@@ -305,11 +297,16 @@ def main() -> None:
 
 						status = args[j + 1]
 
-						for project_data in selected_projects.values():
-							project_data["status"] = status
+						for project_path, project_data in selected_projects.items():
+							old_value = project_data["status"]
+
+							if old_value != status:
+								project_data["status"] = status
+
+								if len(selected_projects) == 1:
+									changes["status"] = (old_value, status)
 
 						done.update({j, j + 1})
-						changed = True
 						j += 2
 
 					elif field == "note":
@@ -319,26 +316,41 @@ def main() -> None:
 
 						note = " ".join(args[j + 1 :])
 
-						for project_data in selected_projects.values():
-							project_data["note"] = note
+						for project_path, project_data in selected_projects.items():
+							old_value = project_data.get("note", "")
+
+							if old_value != note:
+								project_data["note"] = note
+
+								if len(selected_projects) == 1:
+									changes["note"] = (old_value, note)
 
 						done.update(range(j, len(args)))
-						changed = True
 						break
 
 					else:
 						print(f"[ERROR] unknown edit field '{args[j]}'")
 						break
 
-				if changed:
+				if changes or len(selected_projects) > 1:
 					save_data(data)
 
-					if identifier.lower().strip("-") in ("all", "a"):
-						print(f"edited {len(selected_projects)} projects")
-					else:
+					if len(selected_projects) == 1:
+						project_path = next(iter(selected_projects))
+
 						print(
-							f"edited {Path(next(iter(selected_projects))).name if len(selected_projects) == 1 and identifier.lower().strip('-') not in ('all', 'a') else f'{len(selected_projects)} projects'}"
+							f"edited {format_project(project_path, selected_projects[project_path], settings)}"
 						)
+
+						for field, (old_value, new_value) in changes.items():
+							old_display = old_value or '""'
+							new_display = new_value or '""'
+
+							print(
+								f"  {field}: {GRAY}{old_display}{RESET} -> {new_display}"
+							)
+					else:
+						print(f"edited {len(selected_projects)} projects")
 
 			case "init" | "i":
 				specific_path = args[i + 1] if i + 1 < len(args) else os.getcwd()
@@ -386,7 +398,7 @@ def main() -> None:
 			case _:
 				identifier = args[i]
 
-				found = get_project(data, identifier)
+				found = get_project(data, settings, identifier)
 
 				if found is None:
 					print(f"[ERROR] invalid argument")
@@ -394,15 +406,11 @@ def main() -> None:
 
 				project_path, project_data = found
 
-				print(f"name:          {Path(project_path).name}")
-				print(f"path:          {project_path}")
-				print(f"status:        {project_data['status']}")
-				print(f"last touched:  {project_data['last_touched']}")
+				print(format_project(project_path, project_data, settings))
 
 				note = project_data.get("note", "")
-
 				if note:
-					print(f"note:          {note}")
+					print(f"    {GRAY}{note}{RESET}")
 
 
 if __name__ == "__main__":

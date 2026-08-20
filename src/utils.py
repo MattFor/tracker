@@ -59,6 +59,7 @@ def get_last_touched_date(path: str) -> datetime | None:
 # Printing
 #
 
+
 # Warning: !Only thing an LLM was used for! cause I am NOT writing allat by hand (i obv reviewed and made it better tho)
 def print_help(project: dict) -> None:
 	print(f"""{BOLD}{CYAN}{project["name"].capitalize()} v{project["version"]}{RESET}{GRAY}Created by {project["authors"][0]["name"]}{RESET}
@@ -189,8 +190,7 @@ def print_help(project: dict) -> None:
 	{GREEN}tracker init ~/Programming{RESET}
 	{GREEN}tracker settings{RESET}
 	{GREEN}tracker settings edit{RESET}
-	"""
-	)
+	""")
 
 
 #

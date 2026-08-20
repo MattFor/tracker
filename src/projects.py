@@ -86,12 +86,76 @@ def _find_by_number(projects: Projects, number: int) -> list[tuple[str, Project]
 	return matches
 
 
+def format_project(
+	project_path: str,
+	project: Project,
+	settings: Settings,
+	projects: Projects | None = None,
+	prefix: str = "",
+) -> str:
+	headers = {
+		"id": "ID",
+		"tid": "TID",
+		"name": "NAME",
+		"path": "PATH",
+		"status": "STATUS",
+		"last_touched": "LAST TOUCHED",
+	}
+
+	columns: list[str] = settings["display"]["columns"]
+	absolute_paths: bool = settings["output"]["absolute_paths"]
+	compact: bool = settings["output"]["compact"]
+
+	columns = [column for column in columns if column in headers]
+
+	vertical_separator: str = settings["display"]["vertical_separator"] or " "
+
+	if compact:
+		vertical_separator = vertical_separator.strip()
+
+	def get_value(path: str, item: Project, column: str) -> str:
+		if column == "id":
+			return str(item["id"])
+
+		if column == "tid":
+			return str(item.get("tid", ""))
+
+		if column == "name":
+			return Path(path).name
+
+		if column == "path":
+			value = path
+
+			if not absolute_paths:
+				value = os.path.relpath(path)
+
+			return value
+
+		return item[column]
+
+	values = [get_value(project_path, project, column) for column in columns]
+
+	if projects is not None:
+		widths = [
+			max(
+				len(headers[column]),
+				*(len(get_value(path, item, column)) for path, item in projects.items()),
+			)
+			for column in columns
+		]
+
+		values = [value.ljust(widths[i]) for i, value in enumerate(values)]
+
+	return prefix + vertical_separator.join(values).rstrip()
+
+
 def select_projects(
 	projects: Projects, settings: Settings, selectors: list[str]
 ) -> Projects:
 	projects = _get_sorted_projects(projects, settings)
 
 	selected: Projects = {}
+	conflict_preference: str = settings["projects"]["conflict_resolution_preference"]
 
 	def add_project(path: str) -> None:
 		selected[path] = projects[path]
@@ -108,7 +172,7 @@ def select_projects(
 			print(f"[ERROR] ID/TID '{number}' matches multiple projects:")
 
 			for path, project in matches:
-				print(f"  ID {project['id']} | TID {project['tid']} | {Path(path).name}")
+				print(format_project(path, project, settings, dict(matches), "  "))
 
 			return
 
@@ -186,17 +250,32 @@ def select_projects(
 			print(f"[ERROR] project '{selector}' was not found")
 			continue
 
-		if len(matches) > 1:
-			print(f"[ERROR] multiple projects match '{selector}':")
-
-			for path, project in matches:
-				print(
-					f"  ID {project['id']} | TID {project['tid']} | {Path(path).name} | {path}"
-				)
-
+		if len(matches) == 1:
+			add_project(matches[0][0])
 			continue
 
-		add_project(matches[0][0])
+		if conflict_preference == "starts_with":
+			starts_with_matches = [
+				(path, project)
+				for path, project in matches
+				if Path(path).name.lower().startswith(identifier)
+			]
+
+			if len(starts_with_matches) == 1:
+				add_project(starts_with_matches[0][0])
+				continue
+
+			if len(starts_with_matches) > 1:
+				matches = starts_with_matches
+
+		elif conflict_preference == "first_match":
+			add_project(matches[0][0])
+			continue
+
+		print(f"[ERROR] multiple projects match '{selector}':")
+
+		for path, project in matches:
+			print(format_project(path, project, settings, dict(matches), "  "))
 
 	return selected
 
@@ -501,7 +580,9 @@ def find_projects(
 	return projects
 
 
-def get_project(projects: Projects, identifier: str) -> tuple[str, Project] | None:
+def get_project(
+	projects: Projects, settings: Settings, identifier: str
+) -> tuple[str, Project] | None:
 	identifier = os.path.expanduser(identifier).strip().lower()
 
 	if identifier.isdigit():
@@ -535,7 +616,7 @@ def get_project(projects: Projects, identifier: str) -> tuple[str, Project] | No
 		print(f"[ERROR] multiple projects match '{identifier}':")
 
 		for path, project in matches:
-			print(f"  {project['id']} | {Path(path).name} | {path}")
+			print(format_project(path, project, settings, dict(matches), "  "))
 
 		return None
 

@@ -100,6 +100,11 @@ class Settings:
 			"output": {"colour": True, "compact": False, "absolute_paths": True},
 			"database": {"file": "data.pkl"},
 			"logging": {"always_verbose": False},
+			"daemon": {
+				"paths": [],
+				"interval": 60,
+				"timestamp_format": "%Y-%m-%d %H:%M:%S",
+			},
 		}
 
 	@property
