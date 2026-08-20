@@ -1,4 +1,6 @@
 import os
+import copy
+import tomllib
 import subprocess
 
 from typing import Any
@@ -36,6 +38,25 @@ class Settings:
 			return Unknown()
 
 		return value
+
+	def override(self, path: str, value: Any) -> "Settings":
+		keys = path.split(".")
+		data = copy.deepcopy(self._data)
+
+		current = data
+
+		for key in keys[:-1]:
+			if key not in current or not isinstance(current[key], dict):
+				raise KeyError(path)
+
+			current = current[key]
+
+		if keys[-1] not in current:
+			raise KeyError(path)
+
+		current[keys[-1]] = value
+
+		return Settings(data)
 
 	@staticmethod
 	def _default() -> dict[str, Any]:
@@ -107,7 +128,7 @@ class Settings:
 			if not isinstance(data, dict):
 				continue
 
-			print(f"{"\n" if not first else ""}{BOLD}{title}{RESET}")
+			print(f"{'\n' if not first else ''}{BOLD}{title}{RESET}")
 
 			first = False
 
@@ -128,6 +149,13 @@ class Settings:
 			return
 
 		subprocess.run(["xdg-open", str(self.path)])
+
+
+def parse_setting_value(value: str) -> Any:
+	try:
+		return tomllib.loads(f"value = {value}")["value"]
+	except tomllib.TOMLDecodeError:
+		return value
 
 
 settings = Settings()

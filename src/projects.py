@@ -1,5 +1,6 @@
+from typing import NotRequired, TypedDict, Any
+
 import re
-from typing import NotRequired, TypedDict
 
 from src.utils import *
 from src.obj.settings import Settings
@@ -15,6 +16,12 @@ class Project(TypedDict):
 
 
 Projects = dict[str, Project]
+
+
+class ListOptions(TypedDict):
+	limit: NotRequired[int]
+	search: NotRequired[str]
+	regex: NotRequired[str]
 
 
 def get_id(projects: Projects) -> int:
@@ -195,10 +202,15 @@ def select_projects(
 	return selected
 
 
-def print_projects(projects: Projects, settings: Settings) -> None:
+def print_projects(
+	projects: Projects, settings: Settings, options: ListOptions | None = None
+) -> None:
 	if not projects:
-		print("[ERROR] no projects found")
+		print("no projects found")
 		return
+
+	if options is None:
+		options = {}
 
 	headers = {
 		"id": "ID",
@@ -209,8 +221,12 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 		"last_touched": "LAST TOUCHED",
 	}
 
+	list_limit = options.get("limit")
+
+	if list_limit is None:
+		list_limit = settings["display"]["list_limit"]
+
 	columns: list[str] = settings["display"]["columns"]
-	list_limit: int = settings["display"]["list_limit"]
 	show_headers: bool = settings["display"]["show_headers"]
 	show_notes: bool = settings["display"]["show_notes"]
 	compact: bool = settings["output"]["compact"]
@@ -222,16 +238,46 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 		print("no valid columns configured")
 		return
 
+	search: str | None = options.get("search")
+	name_regex: str | None = options.get("regex")
+
+	filtered_projects = projects
+
+	if search:
+		search = search.lower()
+
+		filtered_projects = {
+			path: project
+			for path, project in filtered_projects.items()
+			if (search in Path(path).name.lower() or search in path.lower())
+		}
+
+	if name_regex:
+		try:
+			pattern = re.compile(name_regex, re.IGNORECASE)
+		except re.error as error:
+			print(f"[ERROR] invalid regex: {error}")
+			return
+
+		filtered_projects = {
+			path: project
+			for path, project in filtered_projects.items()
+			if pattern.search(Path(path).name)
+		}
+
+	if not filtered_projects:
+		print("no projects found")
+		return
+
 	sort_by: str = settings["sorting"]["by"]
 	sort_direction: str = settings["sorting"]["direction"]
 
-	if sort_by not in headers and sort_by != "time":
+	if sort_by not in ("id", "name", "path", "status", "last_touched", "time"):
 		sort_by = "name"
 
-	reverse: bool = sort_direction == "descending"
+	reverse = sort_direction == "descending"
 
 	def sort_key(item: tuple[str, Project]) -> str:
-		# noinspection shadowing-names
 		path, project = item
 
 		if sort_by == "id":
@@ -249,7 +295,7 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 		return project[sort_by].lower()
 
 	sorted_projects = sorted(
-		projects.items(),
+		filtered_projects.items(),
 		key=sort_key,
 		reverse=reverse,
 	)
@@ -291,20 +337,28 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 		for i, column in enumerate(columns)
 	]
 
-	spacing = " " if compact else "  "
+	vertical_separator: str = settings["display"]["vertical_separator"] or " "
+	horizontal_separator: str = settings["display"]["horizontal_separator"] or " "
+
+	if compact:
+		vertical_separator = vertical_separator.strip()
 
 	if show_headers:
-		header = spacing.join(
+		header = vertical_separator.join(
 			headers[column].ljust(widths[i]) for i, column in enumerate(columns)
 		)
 
-		separator = spacing.join("-" * width for width in widths)
+		separator = vertical_separator.join(
+			horizontal_separator * width for width in widths
+		)
 
 		print(header)
 		print(separator)
 
 	for tid, path, project, row in rows:
-		print(spacing.join(value.ljust(widths[i]) for i, value in enumerate(row)))
+		print(
+			vertical_separator.join(value.ljust(widths[i]) for i, value in enumerate(row))
+		)
 
 		note = project.get("note", "")
 

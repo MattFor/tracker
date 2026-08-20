@@ -3,8 +3,32 @@ import sys
 from src.projects import *
 from src.tracker_data import *
 
-from src.obj.settings import settings
 from src.obj.pyproject import project
+from src.obj.settings import settings, parse_setting_value
+
+_AVAILABLE_ARGUMENTS = {
+	"version",
+	"v",
+	"help",
+	"h",
+	"list",
+	"l",
+	"add",
+	"a",
+	"remove",
+	"rm",
+	"r",
+	"check",
+	"c",
+	"edit",
+	"e",
+	"init",
+	"i",
+	"settings",
+	"s",
+	"config",
+	"cc",
+}
 
 
 def main() -> None:
@@ -25,7 +49,7 @@ def main() -> None:
 
 	# Mark the argument to skip over it later
 	for i, arg in enumerate(args):
-		if arg.lower().strip("-") in ("verbose", "v"):
+		if arg.lower().strip("-") in ("verbose", "vv"):
 			verbose = True
 			done.add(i)
 
@@ -47,7 +71,61 @@ def main() -> None:
 			# Person can add their own statuses f.e 'final', 'maintenance', 'completed', etc.
 			# last touched date - newest date a file was touched in the project
 			case "list" | "l":
-				print_projects(data, settings)
+				options: dict[str, Any] = {}
+				list_settings = settings
+
+				j = i + 1
+
+				while j < len(args):
+					option = args[j]
+
+					if option.lower().strip("-") in _AVAILABLE_ARGUMENTS:
+						break
+
+					override = option.lstrip("-")
+
+					if "=" in override:
+						key, raw_value = override.split("=", 1)
+
+						try:
+							value = parse_setting_value(raw_value)
+							list_settings = list_settings.override(key, value)
+
+							done.add(j)
+							j += 1
+
+							continue
+
+						except KeyError:
+							print(f"[ERROR] unknown setting '{key}'")
+							break
+
+					if option.isdigit():
+						list_settings = list_settings.override(
+							"display.list_limit",
+							int(option),
+						)
+
+						done.add(j)
+						j += 1
+
+						continue
+
+					if option.lower() == "regex":
+						if j + 1 >= len(args):
+							print("[ERROR] regex requires a pattern")
+							break
+
+						options["regex"] = args[j + 1]
+						done.update({j, j + 1})
+						j += 2
+						continue
+
+					options["search"] = option
+					done.add(j)
+					j += 1
+
+				print_projects(data, list_settings, options)
 
 			case "add" | "a":
 				if i + 1 >= len(args):
@@ -165,7 +243,7 @@ def main() -> None:
 
 				print(f"removed {Path(project_path).name}")
 
-			case "check" | "c":
+			case "check" | "cc":
 				if i + 1 >= len(args):
 					print("[ERROR] check requires a project")
 					break
@@ -181,6 +259,7 @@ def main() -> None:
 
 				project_path, project_data = found
 
+				print(f"id:            {project_data['id']}")
 				print(f"name:          {Path(project_path).name}")
 				print(f"path:          {project_path}")
 				print(f"status:        {project_data['status']}")

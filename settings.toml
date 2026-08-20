@@ -5,6 +5,9 @@ show_headers = false
 time_format = "%Y-%m-%d %H:%M:%S"
 columns = ["tid", "name", "status", "last_touched"]
 
+vertical_separator = ""
+horizontal_separator = ""
+
 [sorting]
 # name / time
 by = "last_touched"
