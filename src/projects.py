@@ -1,3 +1,4 @@
+import re
 from typing import NotRequired, TypedDict
 
 from src.utils import *
@@ -23,9 +24,180 @@ def get_id(projects: Projects) -> int:
 	return max(project["id"] for project in projects.values()) + 1
 
 
+def _sorted_projects(projects: Projects, settings: Settings) -> list[tuple[str, Project]]:
+	sort_by: str = settings["sorting"]["by"]
+	sort_direction: str = settings["sorting"]["direction"]
+
+	if sort_by not in ("id", "name", "path", "status", "last_touched", "time"):
+		sort_by = "name"
+
+	reverse = sort_direction == "descending"
+
+	def sort_key(item: tuple[str, Project]) -> str:
+		# noinspection shadowing-names
+		path, project = item
+
+		if sort_by == "id":
+			return str(project["id"])
+
+		if sort_by == "name":
+			return Path(path).name.lower()
+
+		if sort_by == "path":
+			return path.lower()
+
+		if sort_by in ("last_touched", "time"):
+			return project["last_touched"]
+
+		return project[sort_by].lower()
+
+	return sorted(
+		projects.items(),
+		key=sort_key,
+		reverse=reverse,
+	)
+
+
+def _get_sorted_projects(projects: Projects, settings: Settings) -> Projects:
+	sorted_projects = _sorted_projects(projects, settings)
+	result: Projects = {}
+
+	for tid, (path, project) in enumerate(sorted_projects, start=1):
+		project["tid"] = tid
+		result[path] = project
+
+	return result
+
+
+def _find_by_number(projects: Projects, number: int) -> list[tuple[str, Project]]:
+	matches: list[tuple[str, Project]] = []
+
+	for path, project in projects.items():
+		if project["id"] == number or project["tid"] == number:
+			matches.append((path, project))
+
+	return matches
+
+
+def select_projects(
+	projects: Projects, settings: Settings, selectors: list[str]
+) -> Projects:
+
+	projects = _get_sorted_projects(projects, settings)
+
+	selected: Projects = {}
+
+	def add_project(path: str) -> None:
+		selected[path] = projects[path]
+
+	def select_number(number: int) -> None:
+		# noinspection shadowing-names
+		matches = _find_by_number(projects, number)
+
+		if not matches:
+			print(f"[ERROR] no project matches ID/TID '{number}'")
+			return
+
+		if len(matches) > 1:
+			print(f"[ERROR] ID/TID '{number}' matches multiple projects:")
+
+			for path, project in matches:
+				print(f"  ID {project['id']} | TID {project['tid']} | {Path(path).name}")
+
+			return
+
+		add_project(matches[0][0])
+
+	# noinspection shadowing-names
+	def select_range(start: int, end: int) -> None:
+		step = 1 if end >= start else -1
+
+		for number in range(start, end + step, step):
+			select_number(number)
+
+	for selector in selectors:
+		selector = selector.strip()
+
+		if not selector:
+			continue
+
+		relative_match = re.fullmatch(r"(\d+)([+-])(\d+)", selector)
+
+		if relative_match:
+			start = int(relative_match.group(1))
+			offset = int(relative_match.group(3))
+
+			if relative_match.group(2) == "+":
+				end = start + offset
+			else:
+				end = start - offset
+
+			select_range(start, end)
+			continue
+
+		range_match = re.fullmatch(r"(\d+)-(\d+)", selector)
+
+		if range_match:
+			start = int(range_match.group(1))
+			end = int(range_match.group(2))
+
+			select_range(start, end)
+			continue
+
+		if selector.isdigit():
+			select_number(int(selector))
+			continue
+
+		identifier = os.path.expanduser(selector).lower()
+
+		exact_path = [
+			(path, project)
+			for path, project in projects.items()
+			if path.lower() == identifier
+		]
+
+		if len(exact_path) == 1:
+			add_project(exact_path[0][0])
+			continue
+
+		exact_name = [
+			(path, project)
+			for path, project in projects.items()
+			if Path(path).name.lower() == identifier
+		]
+
+		if len(exact_name) == 1:
+			add_project(exact_name[0][0])
+			continue
+
+		matches = [
+			(path, project)
+			for path, project in projects.items()
+			if (identifier in Path(path).name.lower() or identifier in path.lower())
+		]
+
+		if not matches:
+			print(f"[ERROR] project '{selector}' was not found")
+			continue
+
+		if len(matches) > 1:
+			print(f"[ERROR] multiple projects match '{selector}':")
+
+			for path, project in matches:
+				print(
+					f"  ID {project['id']} | TID {project['tid']} | {Path(path).name} | {path}"
+				)
+
+			continue
+
+		add_project(matches[0][0])
+
+	return selected
+
+
 def print_projects(projects: Projects, settings: Settings) -> None:
 	if not projects:
-		print("no projects found")
+		print("[ERROR] no projects found")
 		return
 
 	headers = {
@@ -123,25 +295,16 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 
 	if show_headers:
 		header = spacing.join(
-			headers[column].ljust(widths[i])
-			for i, column in enumerate(columns)
+			headers[column].ljust(widths[i]) for i, column in enumerate(columns)
 		)
 
-		separator = spacing.join(
-			"-" * width
-			for width in widths
-		)
+		separator = spacing.join("-" * width for width in widths)
 
 		print(header)
 		print(separator)
 
 	for tid, path, project, row in rows:
-		print(
-			spacing.join(
-				value.ljust(widths[i])
-				for i, value in enumerate(row)
-			)
-		)
+		print(spacing.join(value.ljust(widths[i]) for i, value in enumerate(row)))
 
 		note = project.get("note", "")
 
@@ -149,7 +312,9 @@ def print_projects(projects: Projects, settings: Settings) -> None:
 			print(f"    {GRAY}{note}{RESET}")
 
 
-def find_projects(path: str, settings: Settings, projects: Projects | None = None) -> Projects:
+def find_projects(
+	path: str, settings: Settings, projects: Projects | None = None
+) -> Projects:
 	if projects is None:
 		projects = {}
 

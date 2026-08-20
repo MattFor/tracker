@@ -199,13 +199,19 @@ def main() -> None:
 				identifier = args[i + 1]
 				done.add(i + 1)
 
-				found = get_project(data, identifier)
+				if identifier.lower().strip("-") in ("all", "a"):
+					selected_projects = data
 
-				if found is None:
-					print(f"[ERROR] project '{identifier}' not found")
+				else:
+					selected_projects = select_projects(
+						data,
+						settings,
+						[identifier],
+					)
+
+				if not selected_projects:
+					print("[ERROR] no projects selected")
 					break
-
-				project_path, project_data = found
 
 				j = i + 2
 				changed: bool = False
@@ -218,7 +224,11 @@ def main() -> None:
 							print("[ERROR] edit status requires a value")
 							break
 
-						project_data["status"] = args[j + 1]
+						status = args[j + 1]
+
+						for project_data in selected_projects.values():
+							project_data["status"] = status
+
 						done.update({j, j + 1})
 						changed = True
 						j += 2
@@ -228,7 +238,11 @@ def main() -> None:
 							print("[ERROR] edit note requires a value")
 							break
 
-						project_data["note"] = " ".join(args[j + 1 :])
+						note = " ".join(args[j + 1 :])
+
+						for project_data in selected_projects.values():
+							project_data["note"] = note
+
 						done.update(range(j, len(args)))
 						changed = True
 						break
@@ -239,7 +253,13 @@ def main() -> None:
 
 				if changed:
 					save_data(data)
-					print(f"edited {Path(project_path).name}")
+
+					if identifier.lower().strip("-") in ("all", "a"):
+						print(f"edited {len(selected_projects)} projects")
+					else:
+						print(
+							f"edited {Path(next(iter(selected_projects))).name if len(selected_projects) == 1 and identifier.lower().strip('-') not in ('all', 'a') else f'{len(selected_projects)} projects'}"
+						)
 
 			case "init" | "i":
 				specific_path = args[i + 1] if i + 1 < len(args) else os.getcwd()
