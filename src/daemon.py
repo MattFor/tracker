@@ -124,7 +124,7 @@ def main() -> None:
 
 	if not paths:
 		print(
-			"\n[ERROR] no daemon paths configured; add them to [daemon] in settings.toml"
+			"\n[ERROR] no daemon paths configured; add them to [daemon] in settings.toml / my_settings.toml"
 		)
 		return
 

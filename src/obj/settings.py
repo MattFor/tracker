@@ -10,8 +10,7 @@ from src.ansi import *
 
 from src.utils import Unknown
 from src.files import load_toml
-
-_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "settings.toml"
+from src.obj._get_settings_path import settings_path
 
 
 class Settings:
@@ -20,7 +19,7 @@ class Settings:
 			self._data = data
 			return
 
-		data = load_toml(_CONFIG_PATH)
+		data = load_toml(settings_path)
 
 		if data is False:
 			print("[ERROR] could not load settings, using default")
@@ -122,7 +121,7 @@ class Settings:
 
 	@property
 	def path(self) -> Path:
-		return _CONFIG_PATH
+		return settings_path
 
 	def display(self) -> None:
 		sections = {

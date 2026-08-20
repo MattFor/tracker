@@ -106,13 +106,37 @@ case ":${PATH}:" in
         ;;
 esac
 
+MAN_PAGE="${MAN_DIR}/tracker.1"
+MAN_DIR="${HOME}/.local/share/man/man1"
+
+mkdir -p "${MAN_DIR}"
+
+if [[ ! -f "${PROJECT_DIR}/man/tracker.1" ]]; then
+    echo "[ERROR] ${PROJECT_DIR}/man/tracker.1 was not found."
+    exit 1
+fi
+
+cp "${PROJECT_DIR}/man/tracker.1" "${MAN_PAGE}"
+gzip -f "${MAN_PAGE}"
+
+ln -sfn "tracker.1.gz" "${MAN_DIR}/t.1.gz"
+
 echo
 echo "Tracker has been installed successfully. To use type t / tracker."
 echo "-  t [${SHORT_BIN}]"
 echo "-  tracker [${TRACKER_BIN}]"
+echo "-  man t [${MAN_DIR}/t.1.gz]"
+echo "-  man tracker [${MAN_PAGE}.gz]"
 
 if "${INSTALL_DAEMON}"; then
     echo "-  daemon autostarts from here: [${AUTOSTART_FILE}]"
+
+    if ! pgrep -af 'python.*-m src\.daemon' >/dev/null; then
+        "${TRACKER_BIN}" daemon
+        echo "-  daemon started"
+    else
+        echo "-  daemon already running"
+    fi
 fi
 
 echo

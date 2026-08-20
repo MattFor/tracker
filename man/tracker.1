@@ -1,0 +1,147 @@
+.TH TRACKER 1 "August 2026" "tracker 1.0.0" "User Commands"
+
+.SH NAME
+tracker \- simple project tracker
+
+.SH SYNOPSIS
+.B tracker
+.RI "<command> " "[arguments] [options]"
+
+.SH DESCRIPTION
+.B tracker
+tracks projects by discovering Git repositories and storing project metadata.
+
+.SH COMMANDS
+.TP
+.BR help ", " -h
+Show help.
+
+.TP
+.BR version ", " -v
+Show the program version.
+
+.TP
+.BR list ", " -l
+List tracked projects.
+
+.TP
+.BR add ", " -a
+Add a project or scan a directory for projects.
+
+.TP
+.BR remove ", " -r ", " --rm
+Remove tracked projects.
+
+.TP
+.BR check ", " cc
+Show project information.
+
+.TP
+.BR edit ", " -e
+Edit project status or note.
+
+.TP
+.BR init ", " -i
+Scan a directory for projects.
+
+.TP
+.BR settings ", " -s ", " config
+View or edit settings.
+
+.TP
+.BR daemon ", " -d
+Start the background daemon.
+
+.SH PROJECT SELECTION
+Projects can be selected using:
+.PP
+.B ID
+Permanent global project ID.
+.PP
+.B TID
+Temporary ID from the current sorted view.
+.PP
+.B n-x
+Inclusive range.
+.PP
+.B n+x
+Select
+.I n
+and the next
+.I x
+projects.
+.PP
+Project names and full or partial paths are also supported.
+
+.SH LIST FILTERS
+.TP
+.B +m:value
+Include partial name/path matches.
+
+.TP
+.B -m:value
+Exclude partial name/path matches.
+
+.TP
+.B +r:regex
+Include names matching a regex.
+
+.TP
+.B -r:regex
+Exclude names matching a regex.
+
+.SH CONFIGURATION
+Tracker normally loads
+.I settings.toml
+from the project directory.
+
+If
+.I my_settings.toml
+exists, it is used instead.
+
+.SH DAEMON
+The daemon periodically scans the directories configured under
+.B [daemon]
+in the settings file.
+
+.TP
+.B tracker daemon
+Start the daemon.
+
+.TP
+.B tracker daemon kill
+Stop all running Tracker daemons.
+
+.SH EXAMPLES
+.nf
+tracker
+tracker list
+tracker list tracker
+tracker list 20
+tracker add ~/Programming/Projects active "work in progress"
+tracker check tracker
+tracker edit 3-7 status completed
+tracker remove tracker
+tracker init ~/Programming
+tracker settings
+tracker daemon
+.fi
+
+.SH FILES
+.TP
+.I settings.toml
+Default configuration.
+
+.TP
+.I my_settings.toml
+Your own configuration.
+
+.TP
+.I data.pkl
+Project database.
+
+.SH AUTHOR
+MattFor
+
+.SH VERSION
+1.0.0

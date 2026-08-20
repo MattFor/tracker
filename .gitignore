@@ -4,3 +4,5 @@
 data.pkl
 
 __pycache__
+
+my_settings.toml

@@ -1,4 +1,5 @@
 from src.files import *
+from src.obj._get_settings_path import settings_path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -9,11 +10,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def save_settings(settings: dict[str, Any]) -> bool:
-	return save_json(_PROJECT_ROOT / "settings.toml", settings)
+	return save_json(settings_path, settings)
 
 
 def load_settings() -> dict[str, Any] | False:
-	return load_json(_PROJECT_ROOT / "settings.toml")
+	return load_json(settings_path)
 
 
 def create_settings() -> bool:
