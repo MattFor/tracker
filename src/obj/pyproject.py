@@ -4,6 +4,7 @@ from typing import Any
 from pathlib import Path
 from src.utils import Unknown
 
+
 class PyProj:
 	def __init__(self, data: dict[str, Any] | None = None) -> None:
 		if data is not None:

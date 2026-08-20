@@ -1,26 +1,27 @@
 [display]
-list_limit = 5
+list_limit = 10
+show_notes = true
 show_headers = false
-columns = ["name", "status", "last_touched"]
 time_format = "%Y-%m-%d %H:%M:%S"
+columns = ["name", "status", "last_touched"]
 
 [sorting]
 # name / time
-by = "name"
+by = "last_touched"
 
 # ascending / descending
-direction = "ascending"
+direction = "descending"
 
 [projects]
 # Status assigned to newly logged projects
 default_status = "unknown"
 ignore = [
     ".git",
-    ".venv",
-    "node_modules",
-    "target",
     "dist",
-    "build"
+    ".venv",
+    "build",
+    "target",
+    "node_modules"
 ]
 
 [scan]

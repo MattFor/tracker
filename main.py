@@ -3,34 +3,31 @@ import sys
 from src.projects import *
 from src.tracker_data import *
 
+from src.obj.settings import settings
+from src.obj.pyproject import project
+
 
 def main() -> None:
-	settings: dict | False = load_settings()
-	if settings is False:
-		# Make a default settings object - TODO
-		create_settings()
-		settings = {}
-
-	# if settings["mode"] == "auto":
-	# 	pass
-	# else:
-	# 	pass
+	args = sys.argv[1:]
 
 	data: dict | False = load_data()
 	if data is False:
 		create_data()
 		data = {}
 
-	args = sys.argv[1:]
-
 	if len(args) == 0:
 		print_projects(data, settings)
 		return
 
-	# this does not appear in done TODO
-	verbose: bool = any(x in args for x in ("--verbose", "verbose", "-v", "v"))
+	verbose: bool = settings["logging"]["always_verbose"]
 
 	done: set[int] = set()
+
+	# Mark the argument to skip over it later
+	for i, arg in enumerate(args):
+		if arg.lower().strip("-") in ("verbose",):
+			verbose = True
+			done.add(i)
 
 	for i in range(len(sys.argv[1:])):
 		if i in done:
@@ -53,14 +50,102 @@ def main() -> None:
 				print_projects(data, settings)
 
 			case "add" | "a":
-				pass
+				if i + 1 >= len(args):
+					print("[ERROR] add requires a path")
+					break
+
+				path = Path(os.path.expanduser(args[i + 1])).resolve()
+				done.add(i + 1)
+
+				if not path.exists():
+					print("[ERROR] the path does not exist")
+					break
+
+				if not path.is_dir():
+					print("[ERROR] the path is not a directory")
+					break
+
+				project_path = str(path)
+
+				if project_path in data:
+					print("[ERROR] project already exists")
+					break
+
+				status: str = settings["projects"]["default_status"]
+
+				if i + 2 < len(args):
+					status = args[i + 2]
+					done.add(i + 2)
+
+				note: str = ""
+
+				if i + 3 < len(args):
+					note = " ".join(args[i + 3 :])
+					done.update(range(i + 3, len(args)))
+
+				last_touched = get_last_touched_date(project_path)
+
+				data[project_path] = {
+					"path": project_path,
+					"status": status,
+					"last_touched": (
+						last_touched.strftime(settings["display"]["time_format"])
+						if last_touched is not None
+						else "unknown"
+					),
+					"note": note,
+				}
+
+				save_data(data)
+
+				print(f"added {path.name}")
 
 			case "remove" | "rm" | "r":
-				pass
+				if i + 1 >= len(args):
+					print("[ERROR] remove requires a project")
+					break
 
-			# See the information of a single entry
+				identifier = args[i + 1]
+				done.add(i + 1)
+
+				found = get_project(data, identifier)
+
+				if found is None:
+					print(f"[ERROR] project '{identifier}' was not found")
+					break
+
+				project_path, _ = found
+
+				del data[project_path]
+				save_data(data)
+
+				print(f"removed {Path(project_path).name}")
+
 			case "check" | "c":
-				pass
+				if i + 1 >= len(args):
+					print("[ERROR] check requires a project")
+					break
+
+				identifier = args[i + 1]
+				done.add(i + 1)
+
+				found = get_project(data, identifier)
+
+				if found is None:
+					print(f"[ERROR] project '{identifier}' was not found")
+					break
+
+				project_path, project_data = found
+
+				print(f"name:          {Path(project_path).name}")
+				print(f"path:          {project_path}")
+				print(f"status:        {project_data['status']}")
+				print(f"last touched:  {project_data['last_touched']}")
+
+				note = project_data.get("note", "")
+
+				if note:
+					print(f"note:          {note}")
 
 			case "init" | "i":
 				specific_path = args[i + 1] if i + 1 < len(args) else os.getcwd()
@@ -89,8 +174,27 @@ def main() -> None:
 				save_data(data)
 				print("done")
 
+			# If the argument is not found maybe find the project?
 			case _:
-				print(f"argument {i} is invalid")
+				identifier = args[i]
+
+				found = get_project(data, identifier)
+
+				if found is None:
+					print(f"[ERROR] project '{identifier}' was not found")
+					break
+
+				project_path, project_data = found
+
+				print(f"name:          {Path(project_path).name}")
+				print(f"path:          {project_path}")
+				print(f"status:        {project_data['status']}")
+				print(f"last touched:  {project_data['last_touched']}")
+
+				note = project_data.get("note", "")
+
+				if note:
+					print(f"note:          {note}")
 
 
 if __name__ == "__main__":
