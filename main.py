@@ -1,9 +1,8 @@
-import os
 import sys
 
+from src.utils import *
 from src.pyproj import project
 
-import src.sys_utils as sutils
 import src.settings_and_data as settings
 
 
@@ -22,6 +21,9 @@ def main() -> None:
 	data: dict | False = {} if init else settings.load_data()
 
 	args = sys.argv[1:]
+
+	verbose: bool = any(x in args for x in ("--verbose", "verbose", "-v", "v"))
+
 	for i in range(len(sys.argv[1:])):
 		arg = args[i]
 		match arg:
@@ -31,13 +33,14 @@ def main() -> None:
 				)
 
 			case "--help" | "help" | "-h" | "h":
-				version = settings.load_pyproject_toml()["project"]["version"]
+				print_help(project)
 
-				print(version)
-
+			# project id | project dir name | status | last touched date
+			# Person can add their own statuses f.e 'final', 'maintenance', 'completed', etc.
+			# last touched date - newest date a file was touched in the project
 			case "--list" | "list" | "-l" | "l":
-				for key, value in data.items():
-					print(f"{key}: {value}")
+				for k, v in data.items():
+					print(f"{k} | {v}")
 
 			case "--add" | "add" | "-a" | "a":
 				pass
@@ -50,7 +53,7 @@ def main() -> None:
 				pass
 
 			case "find":
-				print(sutils.walk(args[i + 1], args[i + 2]))
+				print(walk(args[i + 1], args[i + 2]))
 
 			case _:  # Assume "list"
 				print(data)
