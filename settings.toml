@@ -1,0 +1,44 @@
+[display]
+list_limit = 5
+show_headers = false
+columns = ["name", "status", "last_touched"]
+time_format = "%Y-%m-%d %H:%M:%S"
+
+[sorting]
+# name / time
+by = "name"
+
+# ascending / descending
+direction = "ascending"
+
+[projects]
+# Status assigned to newly logged projects
+default_status = "unknown"
+ignore = [
+    ".git",
+    ".venv",
+    "node_modules",
+    "target",
+    "dist",
+    "build"
+]
+
+[scan]
+detect_git = true
+
+# Search recursively below the supplied path
+recursive = true
+
+# Do not scan inside an already detected Git project
+stop_at_project = true
+
+[output]
+colour = true
+compact = false
+absolute_paths = true
+
+[database]
+file = "data.pkl"
+
+[logging]
+always_verbose = false

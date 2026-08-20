@@ -12,9 +12,9 @@ class Project(TypedDict):
 Projects = dict[str, Project]
 
 
-def print_projects(projects: Projects) -> None:
+def print_projects(projects: Projects, settings: dict) -> None:
 	if not projects:
-		print("no projects found.")
+		print("no projects found")
 		return
 
 	headers = {
@@ -24,22 +24,29 @@ def print_projects(projects: Projects) -> None:
 		"last_touched": "LAST TOUCHED",
 	}
 
+	columns: list[str] = settings["columns"]
+	list_entries: int = settings["list_entries"]
+
+	columns = [column for column in columns if column in headers]
+
+	selected_projects = list(projects.items())[:list_entries]
+
 	rows = [
-		[
-			path.split("/")[-1],
-			path,
-			project["status"],
-			project["last_touched"],
-		]
-		for path, project in projects.items()
+		[Path(path).name if column == "name" else project[column] for column in columns]
+		for path, project in selected_projects
 	]
 
 	widths = [
-		max(len(headers[key]), *(len(row[i]) for row in rows))
-		for i, key in enumerate(headers)
+		max(
+			len(headers[column]),
+			*(len(row[i]) for row in rows),
+		)
+		for i, column in enumerate(columns)
 	]
 
-	header = "  ".join(headers[key].ljust(widths[i]) for i, key in enumerate(headers))
+	header = "  ".join(
+		headers[column].ljust(widths[i]) for i, column in enumerate(columns)
+	)
 
 	separator = "  ".join("-" * width for width in widths)
 

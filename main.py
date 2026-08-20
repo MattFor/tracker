@@ -1,35 +1,33 @@
 import sys
 
-from src.utils import *
 from src.projects import *
-from src.pyproj import project
-
-import src.settings_and_data as settings
+from src.tracker_data import *
 
 
 def main() -> None:
-	# settings.create_settings()
-	# settings: dict = load_settings()
-	#
-	# if settings.mode == "auto":
+	settings: dict | False = load_settings()
+	if settings is False:
+		# Make a default settings object - TODO
+		create_settings()
+		settings = {}
+
+	# if settings["mode"] == "auto":
 	# 	pass
 	# else:
 	# 	pass
 
-	cwd: str = os.getcwd()
-
-	data = settings.load_data()
-
+	data: dict | False = load_data()
 	if data is False:
-		settings.create_data()
+		create_data()
 		data = {}
 
 	args = sys.argv[1:]
 
 	if len(args) == 0:
-		print_projects(data)
+		print_projects(data, settings)
 		return
 
+	# this does not appear in done TODO
 	verbose: bool = any(x in args for x in ("--verbose", "verbose", "-v", "v"))
 
 	done: set[int] = set()
@@ -38,34 +36,34 @@ def main() -> None:
 		if i in done:
 			continue
 
-		arg = args[i]
+		arg = args[i].lower().strip("-")
 		match arg:
-			case "--version" | "version" | "-v" | "v":
+			case "version" | "v":
 				print(
 					f"Project tracker v{project['version']} created by {project['authors'][0]['name']}"
 				)
 
-			case "--help" | "help" | "-h" | "h":
+			case "help" | "h":
 				print_help(project)
 
 			# project id | project dir name | status | last touched date
 			# Person can add their own statuses f.e 'final', 'maintenance', 'completed', etc.
 			# last touched date - newest date a file was touched in the project
-			case "--list" | "list" | "-l" | "l":
-				print_projects(data)
+			case "list" | "l":
+				print_projects(data, settings)
 
-			case "--add" | "add" | "-a" | "a":
+			case "add" | "a":
 				pass
 
-			case "--remove" | "remove" | "--rm" | "rm" | "-r" | "r":
+			case "remove" | "rm" | "r":
 				pass
 
 			# See the information of a single entry
-			case "--check" | "check" | "-c" | "c":
+			case "check" | "c":
 				pass
 
-			case "--init" | "init" | "-i" | "i":
-				specific_path = args[i + 1] if i + 1 < len(args) else cwd
+			case "init" | "i":
+				specific_path = args[i + 1] if i + 1 < len(args) else os.getcwd()
 
 				if i + 1 < len(args):
 					done.add(i + 1)
@@ -88,11 +86,11 @@ def main() -> None:
 
 				print("saving projects...")
 				data = projects
-				settings.save_data(data)
+				save_data(data)
 				print("done")
 
-			case _:  # Assume "list"
-				print_projects(data)
+			case _:
+				print(f"argument {i} is invalid")
 
 
 if __name__ == "__main__":

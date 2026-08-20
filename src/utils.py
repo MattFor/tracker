@@ -100,3 +100,21 @@ def print_help(project: dict) -> None:
 	{GREEN}tracker --version{RESET}
 	{GREEN}tracker --help{RESET}
 				""")
+
+
+#
+# Other
+#
+
+class Unknown:
+	def __getitem__(self, key: str) -> "Unknown":
+		return self
+
+	def __str__(self) -> str:
+		return "unknown"
+
+	def __repr__(self) -> str:
+		return "unknown"
+
+	def __bool__(self) -> bool:
+		return False
