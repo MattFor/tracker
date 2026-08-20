@@ -1,6 +1,6 @@
 [display]
 # Maximum number of projects shown by `list`.
-list_limit = 10
+list_limit = 20
 
 show_notes = true
 show_headers = true
@@ -9,10 +9,10 @@ show_headers = true
 time_format = "%Y-%m-%d %H:%M:%S"
 
 # id / tid / name / path / status / last_touched
-columns = ["tid", "name", "status", "last_touched"]
+columns = ["tid", "id", "name", "status", "last_touched"]
 
-vertical_separator = ""
-horizontal_separator = ""
+vertical_separator = " | "
+horizontal_separator = "-"
 
 # +m:value = include partial name/path matches
 # -m:value = exclude partial name/path matches
