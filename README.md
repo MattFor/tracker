@@ -11,6 +11,8 @@ make a release and mention the codeberg mirror
 
 standardise the log stuff / have better folder structure and names but later first make it work
 
+currently not having my_settings.toml in the proper format causes a hangup need to fix that
+
 future:  
 possible zoxide integration for conflicting matches?  
 make it so it can also show actual versions of projects inferred by the preferred language config file of the project f.e cargo.lock, pyproject.toml, package.json
