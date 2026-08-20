@@ -3,3 +3,5 @@
 
 data.pkl
 settings.json
+
+__pycache__
