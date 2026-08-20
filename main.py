@@ -288,6 +288,21 @@ def main() -> None:
 				save_data(data)
 				print("done")
 
+			case "settings" | "s" | "config" | "c":
+				if i + 1 >= len(args):
+					settings.display()
+					break
+
+				action = args[i + 1].lower().strip("-")
+				done.add(i + 1)
+
+				match action:
+					case "edit" | "e":
+						settings.edit()
+
+					case _:
+						print(f"[ERROR] unknown settings action '{args[i + 1]}'")
+
 			# If the argument is not found maybe find the project?
 			case _:
 				identifier = args[i]
@@ -295,7 +310,7 @@ def main() -> None:
 				found = get_project(data, identifier)
 
 				if found is None:
-					print(f"[ERROR] project '{identifier}' was not found")
+					print(f"[ERROR] invalid argument")
 					break
 
 				project_path, project_data = found
