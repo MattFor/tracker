@@ -9,10 +9,18 @@ from src.obj.settings import Settings
 class Project(TypedDict):
 	id: int
 	tid: int
+
 	path: str
 	status: str
 	last_touched: str
+
 	note: NotRequired[str]
+
+	first_seen: NotRequired[str]
+	deleted_at: NotRequired[str]
+
+	archived: NotRequired[bool]
+	archived_note: NotRequired[str]
 
 
 Projects = dict[str, Project]

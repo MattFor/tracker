@@ -1,38 +1,59 @@
 [display]
-list_limit = 10
+# Maximum number of projects shown by `list`.
+list_limit = 20
+
 show_notes = true
-show_headers = false
+show_headers = true
+
+# Format used for project timestamps.
 time_format = "%Y-%m-%d %H:%M:%S"
-columns = ["tid", "name", "status", "last_touched"]
 
-vertical_separator = ""
-horizontal_separator = ""
+# id / tid / name / path / status / last_touched
+columns = ["tid", "id", "name", "status", "last_touched"]
 
-filter = ["current"]
+vertical_separator = " | "
+horizontal_separator = "-"
+
+# +m:value = include partial name/path matches
+# -m:value = exclude partial name/path matches
+# +r:regex = include regex name matches
+# -r:regex = exclude regex name matches
+filter = []
+
 
 [sorting]
-# name / time
+# id / name / path / status / last_touched / time
 by = "last_touched"
 
 # ascending / descending
 direction = "descending"
 
+
 [projects]
-# Status assigned to newly logged projects
 default_status = "unknown"
+
 ignore = [
     ".git",
-    "dist",
     ".venv",
+    "venv",
+    "dist",
     "build",
     "target",
+    "__pycache__",
     "node_modules"
 ]
 
-# starts_with / "first_match" / TODO: zoxide score - top / bottom
+# How ambiguous partial matches are resolved.
+#
+# starts_with = prefer a project whose name starts with the selector
+# first_match = use the first matching project
+#
+# TODO: zoxide score - top / bottom
 conflict_resolution_preference = "starts_with"
 
+
 [scan]
+# Detect projects by the presence of .git
 detect_git = true
 
 # Search recursively below the supplied path
@@ -41,25 +62,32 @@ recursive = true
 # Do not scan inside an already detected Git project
 stop_at_project = true
 
+
 [output]
 colour = true
 compact = false
 absolute_paths = true
 
+
 [database]
 file = "data.pkl"
+
 
 [logging]
 always_verbose = false
 
+
 [daemon]
+# Directories to monitor
 paths = [
-    "~/Programming"
+    "~/Programming" # For example
 ]
 
 # Whether to still keep deleted projects
 archive = true
 
-# In seconds
+# Scan interval in seconds
 interval = 60
+
+# Format used by daemon logs
 timestamp_format = "%Y-%m-%d %H:%M:%S"

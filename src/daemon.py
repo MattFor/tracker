@@ -37,24 +37,72 @@ def update_database(
 
 		for project_path, scanned_project in scanned.items():
 			if project_path in data:
-				data[project_path]["last_touched"] = scanned_project["last_touched"]
+				project_data = data[project_path]
+
+				project_data["last_touched"] = scanned_project["last_touched"]
+
+				if project_data.get("archived", False):
+					project_data["archived"] = False
+
+					archived_note = project_data.get("archived_note", "")
+					project_data["note"] = archived_note
+
+					project_data.pop("archived_note", None)
+					project_data.pop("deleted_at", None)
 
 			else:
 				scanned_project["id"] = get_id(data)
+				scanned_project["first_seen"] = time.strftime(
+					settings["daemon"]["timestamp_format"]
+				)
+				scanned_project["archived"] = False
+
 				data[project_path] = scanned_project
 
 	removed_projects: list[str] = []
 
-	if not archive:
-		for project_path in list(data):
-			project = Path(project_path)
+	for project_path in list(data):
+		project = Path(project_path)
 
-			if not any(project.is_relative_to(path) for path in valid_paths):
+		if not any(project.is_relative_to(path) for path in valid_paths):
+			continue
+
+		if project_path in found_paths:
+			continue
+
+		project_data = data[project_path]
+
+		if archive:
+			if project_data.get("archived", False):
 				continue
 
-			if project_path not in found_paths:
-				removed_projects.append(project_path)
-				del data[project_path]
+			timestamp = time.strftime(settings["daemon"]["timestamp_format"])
+
+			original_note = project_data.get("note", "")
+
+			project_data["archived"] = True
+			project_data["deleted_at"] = timestamp
+			project_data["archived_note"] = original_note
+
+			statistics = [
+				f"ID: {project_data['id']}",
+				f"Last touched: {project_data['last_touched']}",
+			]
+
+			first_seen = project_data.get("first_seen")
+
+			if first_seen:
+				statistics.append(f"First seen: {first_seen}")
+
+			project_data["note"] = (
+				f"[DELETED] ({timestamp})\n{chr(10).join(statistics)}{f'\n{original_note}' if original_note else ''}"
+			)
+
+			removed_projects.append(project_path)
+
+		else:
+			removed_projects.append(project_path)
+			del data[project_path]
 
 	new_projects = [
 		project_path for project_path in data if project_path not in before_paths

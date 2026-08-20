@@ -62,15 +62,18 @@ class Settings:
 	def _default() -> dict[str, Any]:
 		return {
 			"display": {
-				"list_limit": 10,
+				"list_limit": 20,
 				"show_headers": True,
 				"show_notes": True,
 				"columns": ["tid", "id", "name", "status", "last_touched"],
 				"time_format": "%Y-%m-%d %H:%M:%S",
+				"vertical_separator": " | ",
+				"horizontal_separator": "-",
+				"filter": [],
 			},
 			"sorting": {
-				# name / path / status / time / id / tid
-				"by": "time",
+				# name / path / status / time / id
+				"by": "last_touched",
 				# ascending / descending
 				"direction": "descending",
 			},
@@ -82,12 +85,13 @@ class Settings:
 					".git",
 					".venv",
 					"venv",
-					"node_modules",
-					"target",
 					"dist",
 					"build",
+					"target",
 					"__pycache__",
+					"node_modules",
 				],
+				"conflict_resolution_preference": "starts_with",
 			},
 			"scan": {
 				# Detect projects by the presence of .git
@@ -97,13 +101,21 @@ class Settings:
 				# Stop searching inside a project once it is detected
 				"stop_at_project": True,
 			},
-			"output": {"colour": True, "compact": False, "absolute_paths": True},
-			"database": {"file": "data.pkl"},
-			"logging": {"always_verbose": False},
+			"output": {
+				"colour": True,
+				"compact": False,
+				"absolute_paths": True,
+			},
+			"database": {
+				"file": "data.pkl",
+			},
+			"logging": {
+				"always_verbose": False,
+			},
 			"daemon": {
 				"paths": [],
-				"interval": 60,
 				"archive": True,
+				"interval": 60,
 				"timestamp_format": "%Y-%m-%d %H:%M:%S",
 			},
 		}
