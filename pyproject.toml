@@ -7,7 +7,7 @@ name = "tracker"
 version = "1.0.0"
 description = "Simple project tracker"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 authors = [
     { name = "MattFor", email = "mattfor@relaxy.xyz" }
@@ -26,9 +26,12 @@ dependencies = []
 [project.urls]
 Homepage = "https://github.com/MattFor/tracker"
 
+[project.scripts]
+tracker = "tracker.cli.app:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["*"]
+include = ["tracker*"]
 
 [dependency-groups]
 dev = [
@@ -53,8 +56,11 @@ select = ["E4", "E7", "E9", "F"]
 [tool.ruff.lint.pycodestyle]
 max-line-length = 90
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.basedpyright]
-include = ["*"]
+include = ["tracker", "tests", "main.py"]
 
 reportPrivateUsage = false # We'll deal with this later methinks
 reportImportCycles = false

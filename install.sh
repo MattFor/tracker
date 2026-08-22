@@ -2,10 +2,12 @@
 set -euo pipefail
 
 BIN_DIR="${HOME}/.local/bin"
+MAN_DIR="${HOME}/.local/share/man/man1"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 SHORT_BIN="${BIN_DIR}/t"
 TRACKER_BIN="${BIN_DIR}/tracker"
+MAN_PAGE="${MAN_DIR}/tracker.1"
 
 print_help() {
     cat <<EOF
@@ -18,18 +20,24 @@ Options:
     --daemon, daemon, -d, d
         Install Tracker and enable daemon autostart.
 
+    --uninstall, uninstall, -u, u
+        Remove the launchers, the man page and the autostart entry.
+
     --help, help, -h, h
         Show this help message.
 EOF
 }
 
 INSTALL_DAEMON=false
+UNINSTALL=false
 
 for arg in "$@"; do
     case "${arg}" in
         --daemon|-d|daemon|d)
-            # shellcheck disable=SC2034
             INSTALL_DAEMON=true
+            ;;
+        --uninstall|-u|uninstall|u)
+            UNINSTALL=true
             ;;
         --help|-h|help|h)
             print_help
@@ -44,9 +52,23 @@ for arg in "$@"; do
     esac
 done
 
+AUTOSTART_DIR="${HOME}/.config/autostart"
+AUTOSTART_FILE="${AUTOSTART_DIR}/tracker-daemon.desktop"
+
+if "${UNINSTALL}"; then
+    "${TRACKER_BIN}" daemon stop >/dev/null 2>&1 || true
+
+    rm -f "${TRACKER_BIN}" "${SHORT_BIN}"
+    rm -f "${MAN_PAGE}.gz" "${MAN_DIR}/t.1.gz"
+    rm -f "${AUTOSTART_FILE}"
+
+    echo "Tracker has been uninstalled."
+    echo "Settings and database in ${PROJECT_DIR} were left alone."
+    exit 0
+fi
+
 mkdir -p "${BIN_DIR}"
 
-# Where is python
 PYTHON_BIN="${PROJECT_DIR}/.venv/bin/python"
 if [[ ! -x "${PYTHON_BIN}" ]]; then
     PYTHON_BIN="$(command -v python3 || true)"
@@ -57,23 +79,36 @@ if [[ -z "${PYTHON_BIN}" ]]; then
     exit 1
 fi
 
+if ! "${PYTHON_BIN}" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "[ERROR] Python 3.11 or newer is required (found $("${PYTHON_BIN}" -V))."
+    exit 1
+fi
+
 cat > "${TRACKER_BIN}" <<EOF
 #!/usr/bin/env bash
 
 set -e
 
 cd "${PROJECT_DIR}"
-exec "${PYTHON_BIN}" "${PROJECT_DIR}/main.py" "\$@"
+exec "${PYTHON_BIN}" -m tracker "\$@"
 EOF
 
-# Do links + perms
 chmod +x "${TRACKER_BIN}"
 ln -sfn "${TRACKER_BIN}" "${SHORT_BIN}"
 
-if "${INSTALL_DAEMON}"; then
-    AUTOSTART_DIR="${HOME}/.config/autostart"
-    AUTOSTART_FILE="${AUTOSTART_DIR}/tracker-daemon.desktop"
+if [[ ! -f "${PROJECT_DIR}/man/tracker.1" ]]; then
+    echo "[ERROR] ${PROJECT_DIR}/man/tracker.1 was not found."
+    exit 1
+fi
 
+mkdir -p "${MAN_DIR}"
+
+cp "${PROJECT_DIR}/man/tracker.1" "${MAN_PAGE}"
+gzip -f "${MAN_PAGE}"
+
+ln -sfn "tracker.1.gz" "${MAN_DIR}/t.1.gz"
+
+if "${INSTALL_DAEMON}"; then
     mkdir -p "${AUTOSTART_DIR}"
 
     cat > "${AUTOSTART_FILE}" <<EOF
@@ -106,21 +141,6 @@ case ":${PATH}:" in
         ;;
 esac
 
-MAN_DIR="${HOME}/.local/share/man/man1"
-MAN_PAGE="${MAN_DIR}/tracker.1"
-
-mkdir -p "${MAN_DIR}"
-
-if [[ ! -f "${PROJECT_DIR}/man/tracker.1" ]]; then
-    echo "[ERROR] ${PROJECT_DIR}/man/tracker.1 was not found."
-    exit 1
-fi
-
-cp "${PROJECT_DIR}/man/tracker.1" "${MAN_PAGE}"
-gzip -f "${MAN_PAGE}"
-
-ln -sfn "tracker.1.gz" "${MAN_DIR}/t.1.gz"
-
 echo
 echo "Tracker has been installed successfully. To use type t / tracker."
 echo "-  t [${SHORT_BIN}]"
@@ -131,13 +151,8 @@ echo "-  man tracker [${MAN_PAGE}.gz]"
 if "${INSTALL_DAEMON}"; then
     echo "-  daemon autostarts from here: [${AUTOSTART_FILE}]"
 
-    if ! pgrep -af 'python.*-m src\.daemon' >/dev/null; then
-        "${TRACKER_BIN}" daemon
-        echo "-  daemon started"
-    else
-        echo "-  daemon already running"
-    fi
+    "${TRACKER_BIN}" daemon start
 fi
 
 echo
-echo "If ~/.local/bin in PATH, you can use them immediately."
+echo "If ~/.local/bin is in PATH, you can use them immediately."

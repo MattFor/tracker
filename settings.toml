@@ -1,24 +1,58 @@
 [display]
-# Maximum number of projects shown by `list`.
+# Maximum number of projects shown at once, 0 means no limit.
 list_limit = 20
 
 show_notes = true
 show_headers = true
 
+# Where a project's note goes.
+# auto   = same line when it fits, its own line when it does not
+# inline = always the same line, shortened when needed
+# below  = always on its own line
+note_position = "auto"
+
+# A note needs at least this much free space to stay on the same line.
+note_min_width = 24
+
 # Format used for project timestamps.
 time_format = "%Y-%m-%d %H:%M:%S"
 
-# id / tid / name / path / status / last_touched
+# Show "2 days ago" instead of the timestamp.
+relative_times = false
+
+# id / tid / name / path / status / last_touched / version / language
 columns = ["tid", "id", "name", "status", "last_touched"]
 
 vertical_separator = " | "
 horizontal_separator = "-"
+
+# Widest line to print, 0 follows the terminal.
+max_width = 0
 
 # +m:value = include partial name/path matches
 # -m:value = exclude partial name/path matches
 # +r:regex = include regex name matches
 # -r:regex = exclude regex name matches
 filter = []
+
+# Colour per status. (You can add some here)
+# red / green / yellow / blue / magenta / cyan / gray
+[display.status_colours]
+current = "green"
+active = "green"
+todo = "yellow"
+planned = "yellow"
+review-needed = "magenta"
+blocked = "red"
+shelf = "blue"
+paused = "blue"
+done = "cyan"
+completed = "cyan"
+final = "cyan"
+maintenance = "cyan"
+archived = "gray"
+deleted = "gray"
+unknown = "gray"
 
 
 [sorting]
@@ -51,6 +85,9 @@ ignore = [
 # TODO: zoxide score - top / bottom
 conflict_resolution_preference = "starts_with"
 
+# Ask before removing several projects at once.
+confirm_destructive = true
+
 
 [scan]
 # Detect projects by the presence of .git
@@ -62,6 +99,13 @@ recursive = true
 # Do not scan inside an already detected Git project
 stop_at_project = true
 
+# Follow symlinked directories while scanning
+follow_symlinks = false
+
+# Skip the ignored directories when working out the last touched date.
+# Keeps .git, node_modules and friends from counting as your own edits.
+timestamps_skip_ignored = true
+
 
 [output]
 colour = true
@@ -70,6 +114,8 @@ absolute_paths = true
 
 
 [database]
+# Relative paths are resolved against the project directory.
+# TRACKER_DATA overrides this.
 file = "data.pkl"
 
 

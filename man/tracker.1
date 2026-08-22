@@ -9,108 +9,186 @@ tracker \- simple project tracker by MattFor
 
 .SH DESCRIPTION
 .B tracker
-tracks projects by discovering Git repositories and storing project metadata.
+tracks projects by discovering Git repositories and storing project metadata
+such as a status, a free form note and when the project was last touched.
+
+Running
+.B tracker
+with no command lists the tracked projects.
 
 .SH COMMANDS
 .TP
-.BR help ", " -h
+.BR help ", " h ", " -h
 Show help.
 
 .TP
-.BR version ", " -v
+.BR version ", " v ", " -v
 Show the program version.
 
 .TP
-.BR list ", " -l
-List tracked projects.
+.BR list ", " l ", " ls
+List tracked projects. Accepts a search word, a limit, a
+.B regex
+pattern, list filters and temporary setting overrides in
+.IR setting = value
+form.
 
 .TP
-.BR add ", " -a
-Add a project or scan a directory for projects.
+.BR check ", " c ", " cc ", " info
+Show everything known about a project: its tracking data, where it lives, how
+much space it uses, its Git branch, remote, last commit and working tree state,
+the language and version read from its build files and its note.
 
 .TP
-.BR remove ", " -r ", " --rm
-Remove tracked projects.
+.BR add ", " a
+Add a project, or scan a directory and add the Git projects below it.
 
 .TP
-.BR check ", " cc
-Show project information.
+.BR remove ", " rm ", " r
+Remove tracked projects. Nothing is deleted from disk. Removing more than one
+project at a time asks for confirmation unless
+.B --yes
+is given.
 
 .TP
-.BR edit ", " -e
-Edit project status or note.
+.BR edit ", " e
+Change the
+.B status
+or
+.B note
+of the selected projects.
 
 .TP
-.BR init ", " -i
-Scan a directory for projects.
+.BR init ", " i ", " scan
+Scan a directory and merge what it finds into the database. Existing entries
+keep their ID, status and note.
 
 .TP
-.BR settings ", " -s ", " config
-View or edit settings.
+.BR path ", " p ", " where
+Print the path of a project, for example
+.BR "cd \(dq$(tracker path tracker)\(dq" .
 
 .TP
-.BR daemon ", " -d
-Start the background daemon.
+.BR stats ", " summary
+Show totals, a breakdown by status and the most and least recently touched
+projects.
 
-.SH PROJECT SELECTION
-Projects can be selected using:
-.PP
+.TP
+.BR settings ", " s ", " config
+View or change the configuration. Takes
+.BR edit ", " path ", " get " and " set .
+
+.TP
+.BR daemon ", " d ", " bg
+Control the background scanner. Takes
+.BR start ", " stop ", " restart ", " status ", " log " and " run .
+
+.SH SELECTION
+.TP
 .B ID
-Permanent global project ID.
-.PP
+Permanent global ID.
+.TP
 .B TID
 Temporary ID from the current sorted view.
-.PP
-.B n-x
-Inclusive range.
-.PP
-.B n+x
-Select
-.I n
-and the next
-.I x
-projects.
-.PP
-Project names and full or partial paths are also supported.
-
-.SH LIST FILTERS
 .TP
-.B +m:value
-Include partial name/path matches.
-
+.BI # n
+Force the permanent ID.
 .TP
-.B -m:value
-Exclude partial name/path matches.
-
+.BI @ n
+Force the temporary ID.
 .TP
-.B +r:regex
+.IB n - x
+Inclusive range, in either direction.
+.TP
+.IB n + x
+Project n and the next x projects.
+.TP
+.B all
+Every tracked project.
+.TP
+.B name
+Exact or partial project name.
+.TP
+.B path
+Exact or partial project path.
+
+.SH FILTERS
+.TP
+.BI +m: value
+Include partial name or path matches.
+.TP
+.BI -m: value
+Exclude partial name or path matches.
+.TP
+.BI +r: regex
 Include names matching a regex.
-
 .TP
-.B -r:regex
+.BI -r: regex
 Exclude names matching a regex.
+
+.SH NOTES
+A note is printed on the same line as its project and only drops to a line of
+its own when the terminal is too narrow. This is controlled by
+.BR display.note_position ,
+.B display.note_min_width
+and
+.BR display.show_notes .
+
+.SH OPTIONS
+.TP
+.BR verbose ", " vv ", " --verbose
+Explain what is happening while it happens.
+.TP
+.BR --yes ", " -y ", " --force
+Do not ask for confirmation.
+.TP
+.BR --no-colour ", " --colour
+Force colour off or on.
 
 .SH CONFIGURATION
 Tracker normally loads
 .I settings.toml
-from the project directory.
-
-If
+from the project directory. If
 .I my_settings.toml
-exists, it is used instead.
+exists, it is used instead. Any setting left out of your file falls back to the
+built in default, so a partial configuration file is fine.
+
+Settings can be overridden for a single command:
+.PP
+.nf
+tracker list display.list_limit=20
+tracker list sorting.by=name output.compact=true
+.fi
 
 .SH DAEMON
 The daemon periodically scans the directories configured under
 .B [daemon]
-in the settings file.
+in the settings file, adding new projects and archiving ones that disappeared.
+It runs detached and writes to a log file.
 
 .TP
 .B tracker daemon
 Start the daemon.
-
 .TP
-.B tracker daemon kill
-Stop all running Tracker daemons.
+.B tracker daemon stop
+Stop the running daemon.
+.TP
+.B tracker daemon status
+Show whether it is running, where its log is and what it watches.
+.TP
+.B tracker daemon log
+Show the end of the daemon log.
+
+.SH ENVIRONMENT
+.TP
+.B TRACKER_SETTINGS
+Use a different settings file.
+.TP
+.B TRACKER_DATA
+Use a different database file.
+.TP
+.B NO_COLOR
+Disable colour.
 
 .SH EXAMPLES
 .nf
@@ -118,13 +196,15 @@ tracker
 tracker list
 tracker list tracker
 tracker list 20
+tracker list -m:archived
 tracker add ~/Programming/Projects active "work in progress"
 tracker check tracker
 tracker edit 3-7 status completed
 tracker remove tracker
 tracker init ~/Programming
-tracker settings
-tracker daemon
+tracker stats
+tracker settings set display.list_limit 30
+tracker daemon status
 .fi
 
 .SH FILES
@@ -139,6 +219,14 @@ Your own configuration.
 .TP
 .I data.pkl
 Project database.
+
+.TP
+.I ~/.local/state/tracker/daemon.log
+Daemon log.
+
+.TP
+.I ~/.local/state/tracker/daemon.pid
+Daemon process ID.
 
 .SH AUTHOR
 MattFor

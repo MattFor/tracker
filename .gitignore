@@ -2,7 +2,10 @@
 .venv
 
 data.pkl
+data.pkl.corrupt-*
 
 __pycache__
+.ruff_cache
+.pytest_cache
 
 my_settings.toml

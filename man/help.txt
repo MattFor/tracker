@@ -3,14 +3,16 @@
 {BOLD}Usage:{RESET}
    {GREEN}tracker <command> [arguments] [options]{RESET}
 
+   {GRAY}No arguments prints listed proejcts.{RESET}
+
 {BOLD}Commands:{RESET}
-   {YELLOW}help{RESET}, {GRAY}-h, --help{RESET}
+   {YELLOW}help{RESET}, {GRAY}h, -h, --help{RESET}
       Show this help message.
 
-   {YELLOW}version{RESET}, {GRAY}-v, --version{RESET}
+   {YELLOW}version{RESET}, {GRAY}v, -v, --version{RESET}
       Show the program version.
 
-   {YELLOW}list{RESET}, {GRAY}-l, --list{RESET}
+   {YELLOW}list{RESET}, {GRAY}l, ls, --list{RESET}
       List tracked projects.
 
       {GRAY}Usage:{RESET}
@@ -18,18 +20,34 @@
          {GREEN}tracker list <search>{RESET}
          {GREEN}tracker list <number>{RESET}
          {GREEN}tracker list regex <pattern>{RESET}
+         {GREEN}tracker list <filter>{RESET}
          {GREEN}tracker list <setting>=<value> ...{RESET}
 
       {GRAY}Examples:{RESET}
          {GREEN}tracker list tracker{RESET}
          {GREEN}tracker list 20{RESET}
+         {GREEN}tracker list 0{RESET}                        {GRAY}no limit{RESET}
          {GREEN}tracker list regex "^relaxy-"{RESET}
+         {GREEN}tracker list -m:archived{RESET}
          {GREEN}tracker list display.list_limit=20{RESET}
          {GREEN}tracker list sorting.by=time sorting.direction=descending{RESET}
 
       {GRAY}Multiple setting overrides may be used at once.{RESET}
 
-   {YELLOW}add{RESET}, {GRAY}-a, --add{RESET}
+   {YELLOW}check{RESET}, {GRAY}c, cc, info{RESET}
+      Show everything known about a project.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker check <selection>{RESET}
+
+      {GRAY}Examples:{RESET}
+         {GREEN}tracker check tracker{RESET}
+         {GREEN}tracker check 42{RESET}
+         {GREEN}tracker check 1-5{RESET}
+
+      {GRAY}A bare project name with no command shows the short version instead.{RESET}
+
+   {YELLOW}add{RESET}, {GRAY}a, --add{RESET}
       Add a project or scan a directory for projects.
 
       {GRAY}Usage:{RESET}
@@ -39,20 +57,16 @@
 
       {GRAY}If <path> is not a Git project, its subdirectories are searched for Git projects.{RESET}
 
-   {YELLOW}remove{RESET}, {GRAY}-r, --remove, --rm{RESET}
-      Remove one or more tracked projects.
+   {YELLOW}remove{RESET}, {GRAY}rm, r, del, delete{RESET}
+      Remove one or more tracked projects. (Project files untouched)
 
       {GRAY}Usage:{RESET}
          {GREEN}tracker remove <selection>{RESET}
          {GREEN}tracker remove all{RESET}
 
-   {YELLOW}check{RESET}, {GRAY}cc{RESET}
-      Show detailed information about a tracked project.
+      {GRAY}Removing several projects at once asks for confirmation, --yes skips it.{RESET}
 
-      {GRAY}Usage:{RESET}
-         {GREEN}tracker check <project>{RESET}
-
-   {YELLOW}edit{RESET}, {GRAY}-e, --edit{RESET}
+   {YELLOW}edit{RESET}, {GRAY}e, --edit{RESET}
       Edit one or more project properties.
 
       {GRAY}Usage:{RESET}
@@ -66,33 +80,70 @@
          {GREEN}tracker edit tracker status maintenance{RESET}
          {GREEN}tracker edit all status active{RESET}
 
-   {YELLOW}init{RESET}, {GRAY}-i, --init{RESET}
-      Scan a directory and discover projects.
+   {YELLOW}init{RESET}, {GRAY}i, scan{RESET}
+      Scan a directory and add whatever it finds. Existing entries keep their ID, status and note, only the timestamp is refreshed.
 
       {GRAY}Usage:{RESET}
+         {GREEN}tracker init{RESET}
          {GREEN}tracker init <path>{RESET}
 
-   {GRAY}If no path is supplied, the current directory is used.{RESET}
+      {GRAY}If no path is supplied, the current directory is used.{RESET}
 
-   {YELLOW}settings{RESET}, {GRAY}-s, --settings, config{RESET}
-      View or edit the configuration.
+   {YELLOW}path{RESET}, {GRAY}p, where{RESET}
+      Print the path of a project.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}cd "$(tracker path tracker)"{RESET}
+
+   {YELLOW}stats{RESET}, {GRAY}stat, summary{RESET}
+      Show how many projects are tracked, how they are split by status and which ones were touched most and least recently.
+
+   {YELLOW}settings{RESET}, {GRAY}s, config, conf{RESET}
+      View or change the configuration.
 
       {GRAY}Usage:{RESET}
          {GREEN}tracker settings{RESET}
          {GREEN}tracker settings edit{RESET}
+         {GREEN}tracker settings path{RESET}
+         {GREEN}tracker settings get <setting>{RESET}
+         {GREEN}tracker settings set <setting> <value>{RESET}
 
-   {YELLOW}daemon{RESET}, {GRAY}-d, --daemon, background{RESET}
-      Start the project tracking daemon in the background.
+      {GRAY}Examples:{RESET}
+         {GREEN}tracker settings set display.list_limit 30{RESET}
+         {GREEN}tracker settings set display.note_position below{RESET}
+
+      {GRAY}Setting a value rewrites only that line.{RESET}
+
+   {YELLOW}daemon{RESET}, {GRAY}d, b, bg, background{RESET}
+      Run the background scanner.
 
       {GRAY}Usage:{RESET}
-         {GREEN}tracker daemon{RESET}
-         {GREEN}tracker daemon kill{RESET}
+         {GREEN}tracker daemon{RESET}              {GRAY}start detached{RESET}
+         {GREEN}tracker daemon stop{RESET}         {GRAY}also: kill, k{RESET}
+         {GREEN}tracker daemon restart{RESET}
+         {GREEN}tracker daemon status{RESET}
+         {GREEN}tracker daemon log [lines]{RESET}
+         {GREEN}tracker daemon run{RESET}          {GRAY}stay in this terminal{RESET}
 
-      {GRAY}The daemon periodically scans the directories configured under [daemon] in settings.toml / my_settings.toml.{RESET}
-      {GRAY}Use {GREEN}kill{GRAY} or {GREEN}k{GRAY} to stop all running Tracker daemons.{RESET}
+      {GRAY}The daemon periodically scans the directories configured under [daemon].{RESET}
+      {GRAY}Its output goes to a log file, see {GREEN}tracker daemon status{GRAY} for where.{RESET}
+
+{BOLD}Project selection:{RESET}
+   {GRAY}Projects can be identified by:{RESET}
+   {GREEN}ID{RESET}             Permanent global ID
+   {GREEN}TID{RESET}            Temporary ID from the current sorted view
+   {GREEN}#n{RESET}             Force the permanent ID
+   {GREEN}@n{RESET}             Force the temporary ID
+   {GREEN}n-x{RESET}            Inclusive range, in either direction
+   {GREEN}n+x{RESET}            n and the next x projects
+   {GREEN}all{RESET}            Every tracked project
+   {GREEN}name{RESET}           Exact or partial project name
+   {GREEN}path{RESET}           Exact or partial project path
+
+{GRAY}Ambiguous partial matches are resolved according to projects.conflict_resolution_preference.{RESET}
 
 {BOLD}List filters:{RESET}
-   {GRAY}Persistent filters can be configured in settings.toml / my_settings.toml.{RESET}
+   {GRAY}Filters work on the command line and in display.filter in the settings.{RESET}
 
    {GREEN}+m:<value>{RESET}   Include partial name/path matches.
    {GREEN}-m:<value>{RESET}   Exclude partial name/path matches.
@@ -102,43 +153,48 @@
    {GRAY}Example:{RESET}
       {GREEN}filter = ["+m:python", "-m:test", "+r:^relaxy-"]{RESET}
 
-{BOLD}Project selection:{RESET}
-   {GRAY}Projects can be identified by:{RESET}
-   {GREEN}ID{RESET}             Permanent global ID
-   {GREEN}TID{RESET}            Temporary ID from the current sorted view
-   {GREEN}<n-x>{RESET}          Inclusive range
-   {GREEN}<n+x>{RESET}          Select n and the next x projects
-   {GREEN}<n-x>{RESET}          Select n and the previous x projects
-   {GREEN}name{RESET}           Exact or partial project name
-   {GREEN}path{RESET}           Exact or partial project path
+{BOLD}Notes:{RESET}
+   {GRAY}A note is shown on the same line as its project and only moves to its own{RESET}
+   {GRAY}line when the terminal is too narrow for it. Change that with:{RESET}
 
-{GRAY}Ambiguous partial matches are resolved according to projects.conflict_resolution_preference.{RESET}
+      {GREEN}display.note_position{RESET}    auto {GRAY}(default){RESET}, inline, below
+      {GREEN}display.note_min_width{RESET}   how much room a note needs to stay inline
+      {GREEN}display.show_notes{RESET}       turn notes off entirely
 
 {BOLD}Options:{RESET}
    {MAGENTA}verbose{RESET}, {GRAY}vv, --verbose, --vv{RESET}
-      Enable verbose output.
+      Explain what is going on while it happens.
+
+   {MAGENTA}--yes{RESET}, {GRAY}-y, --force{RESET}
+      Do not ask for confirmation.
+
+   {MAGENTA}--no-colour{RESET}, {GRAY}--no-color, --colour, --color{RESET}
+      Force colour off or on. Colour is disabled automatically when the output
+      is not a terminal, or when NO_COLOR is set.
 
 {BOLD}Configuration:{RESET}
    {GRAY}Tracker loads settings.toml by default.{RESET}
    {GRAY}If my_settings.toml exists, it is used instead.{RESET}
+   {GRAY}Anything missing from your file falls back to the built in default.{RESET}
 
-   {GRAY}Settings can be overridden temporarily from the command line:{RESET}
+   {GRAY}Settings can be overridden for a single command:{RESET}
       {GREEN}tracker list display.list_limit=20{RESET}
       {GREEN}tracker list sorting.by=name output.compact=true{RESET}
+
+   {GRAY}Environment:{RESET}
+      {GREEN}TRACKER_SETTINGS{RESET}   use a different settings file
+      {GREEN}TRACKER_DATA{RESET}       use a different database file
+      {GREEN}NO_COLOR{RESET}           disable colour
 
 {BOLD}Examples:{RESET}
    {GREEN}tracker{RESET}
    {GREEN}tracker list{RESET}
    {GREEN}tracker list tracker{RESET}
-   {GREEN}tracker list 20{RESET}
    {GREEN}tracker add ~/Programming/Projects active "work in progress"{RESET}
    {GREEN}tracker check tracker{RESET}
-   {GREEN}tracker check 42{RESET}
    {GREEN}tracker edit 3-7 status completed{RESET}
-   {GREEN}tracker edit all status active{RESET}
    {GREEN}tracker remove tracker{RESET}
    {GREEN}tracker init ~/Programming{RESET}
-   {GREEN}tracker settings{RESET}
-   {GREEN}tracker settings edit{RESET}
-   {GREEN}tracker daemon{RESET}
-   {GREEN}tracker daemon kill{RESET}
+   {GREEN}tracker stats{RESET}
+   {GREEN}tracker settings set display.list_limit 30{RESET}
+   {GREEN}tracker daemon status{RESET}
